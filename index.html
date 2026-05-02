@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Cofit Hk Ads Dashboard",
+  "schemaVersion": 1,
+  "description": "初日診所(香港) Cofit 潛在顧客活動 Meta 廣告優化 dashboard。包含 KPI 體檢、每日趨勢、廣告組合紅黃綠燈、性別×年齡熱力圖、再行銷 vs 開發新客對比、素材疲勞度、優化動作清單。資料來自上傳檔，每次重新上傳新數據後請 Claude 更新即可刷新。"
+}
+</script>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>初日診所 多院所廣告 Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/gridjs.umd.js" integrity="sha384-/XXDzxe4FsGiAe50i/u9pY/Vy/uX654MHB1xoc1BJNnH1WXHhqHga9g3q5tF4gj7" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/theme/mermaid.min.css" integrity="sha384-jZvDSsmGB9oGGT/4l9bHXGoAv1OxvG/cFmSo0dZaSqmBgvQTKDBFAMftlXTmMbNW" crossorigin="anonymous">
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', Arial, sans-serif; background: #f7f8fa; color: #222; margin: 0; padding: 16px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 17px; margin: 22px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #e5e7eb; }
+h3 { font-size: 15px; margin: 16px 0 8px; color: #374151; }
+.sub { color: #6b7280; font-size: 13px; }
+.refresh-note { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 8px 12px; border-radius: 4px; font-size: 12px; margin: 8px 0 14px; color: #78350f; }
+
+/* Top clinic tabs */
+.clinic-tabs { display: flex; gap: 4px; margin: 14px 0 8px; flex-wrap: wrap; border-bottom: 2px solid #d1d5db; }
+.clinic-tab { padding: 10px 18px; cursor: pointer; font-size: 14px; font-weight: 600; border: 2px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; color: #6b7280; background: #f3f4f6; }
+.clinic-tab.active { background: white; color: #111; border-color: #d1d5db; border-bottom: 2px solid white; margin-bottom: -2px; }
+
+/* Sub tabs (campaign filters) */
+.sub-tabs { display: flex; gap: 4px; margin: 8px 0 14px; flex-wrap: wrap; }
+.sub-tab { padding: 6px 12px; cursor: pointer; font-size: 13px; border: 1px solid #d1d5db; border-radius: 5px; background: white; color: #4b5563; }
+.sub-tab.active { background: #2563eb; color: white; border-color: #2563eb; }
+
+.view { display: none; }
+.view.active { display: block; }
+.subview { display: none; }
+.subview.active { display: block; }
+
+/* KPI cards */
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.kpi-card { background: white; padding: 12px 14px; border-radius: 8px; border: 1px solid #e5e7eb; }
+.kpi-label { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+.kpi-value { font-size: 22px; font-weight: 700; color: #111; }
+.kpi-sub { font-size: 11px; color: #6b7280; margin-top: 2px; }
+.kpi-good { color: #10b981; }
+.kpi-bad { color: #ef4444; }
+
+/* Sections */
+.section-card { background: white; border-radius: 8px; border: 1px solid #e5e7eb; padding: 14px 16px; margin-bottom: 14px; }
+.legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: #4b5563; margin: 8px 0; }
+.legend-pill { padding: 3px 8px; border-radius: 999px; background: #f3f4f6; }
+
+/* Overview cards grid */
+.overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.clinic-card { background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: all 0.15s; }
+.clinic-card:hover { border-color: #3b82f6; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.clinic-card-head { display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px; }
+.clinic-card-name { font-size: 16px; font-weight: 700; color: #111; }
+.clinic-card-sub { font-size: 12px; color: #6b7280; }
+.clinic-card-status { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; }
+.status-good { background: #d1fae5; color: #065f46; }
+.status-warn { background: #fef3c7; color: #78350f; }
+.status-bad { background: #fee2e2; color: #991b1b; }
+.clinic-card-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+.mini-kpi { background: #f9fafb; padding: 8px 10px; border-radius: 6px; }
+.mini-kpi-label { font-size: 10px; color: #6b7280; }
+.mini-kpi-value { font-size: 15px; font-weight: 700; color: #111; }
+.clinic-card-sparkline { height: 40px; margin: 6px 0; }
+.clinic-card-foot { font-size: 11px; color: #6b7280; display: flex; justify-content: space-between; margin-top: 6px; }
+
+/* Charts */
+canvas { max-width: 100%; }
+.chart-wrap { position: relative; height: 280px; }
+.chart-wrap-sm { position: relative; height: 200px; }
+
+/* Demo heatmap */
+.demo-grid { display: grid; grid-template-columns: 80px repeat(7, 1fr); gap: 2px; font-size: 12px; }
+.demo-cell { padding: 6px 4px; text-align: center; border-radius: 3px; }
+.demo-header { background: #f3f4f6; font-weight: 600; padding: 6px; }
+.demo-value { color: white; }
+
+/* Actions */
+.action-list { display: flex; flex-direction: column; gap: 6px; }
+.action-row { display: grid; grid-template-columns: 60px 150px 1fr 2fr; gap: 10px; padding: 8px 10px; border-radius: 6px; background: #f9fafb; align-items: center; font-size: 13px; }
+.action-row.p0 { background: #fee2e2; border: 1px solid #fca5a5; }
+.action-row.p1 { background: #fef2f2; }
+.action-row.p1g { background: #ecfdf5; }
+.action-row.p2 { background: #fff7ed; }
+.priority { font-weight: 700; font-size: 12px; }
+.action-target { font-weight: 600; word-break: break-all; }
+.action-reason { color: #4b5563; font-size: 12px; }
+
+/* Comparison table */
+.compare-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.compare-table th, .compare-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+.compare-table th { background: #f9fafb; font-weight: 600; font-size: 12px; color: #4b5563; }
+
+@media (max-width: 720px) {
+  .action-row { grid-template-columns: 1fr; gap: 4px; }
+  .demo-grid { font-size: 10px; grid-template-columns: 60px repeat(7, 1fr); }
+  .clinic-tab { padding: 8px 12px; font-size: 13px; }
+}
+</style>
+</head>
+<body>
+
+<h1>🏥 初日診所 多院所廣告 Dashboard</h1>
+<div class="sub">院所獨立分頁 + 整合總覽 · 各院所目標 CPL 不同</div>
+<div class="refresh-note">📌 上傳新數據後，告訴 Claude「更新 dashboard」即可同步刷新。每個院所維持獨立檔案不混合。</div>
+
+<div class="clinic-tabs" id="clinicTabs">
+  <div class="clinic-tab active" data-clinic="overview">📊 整合總覽</div>
+  <div class="clinic-tab" data-clinic="hk">🇭🇰 香港 (Cofit)</div>
+  <div class="clinic-tab" data-clinic="beauty">🏥 佳醫美人 (台北仁愛)</div>
+</div>
+
+<!-- ===== OVERVIEW ===== -->
+<div class="view active" id="view-overview">
+  <h2>院所現況卡片</h2>
+  <div class="overview-grid" id="overviewGrid"></div>
+
+  <h2>院所對比表</h2>
+  <div class="section-card">
+    <div style="overflow-x:auto"><table class="compare-table" id="compareTable"></table></div>
+  </div>
+
+  <h2>跨院所近 14 日 CPL 趨勢</h2>
+  <div class="section-card">
+    <div class="chart-wrap"><canvas id="overviewTrendChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ===== HK ===== -->
+<div class="view" id="view-hk"></div>
+
+<!-- ===== BEAUTY ===== -->
+<div class="view" id="view-beauty">
+  <div class="sub-tabs" id="beautySubTabs">
+    <div class="sub-tab active" data-sub="leadform">📝 名單型廣告</div>
+    <div class="sub-tab" data-sub="leadgen">🎯 潛在顧客（直接預約）</div>
+  </div>
+  <div class="subview active" id="sub-leadform"></div>
+  <div class="subview" id="sub-leadgen"></div>
+</div>
+
+<script>
+const DATA = {"overview_cards":[{"clinic":"🇭🇰 香港 (Cofit)","sub":"潛在顧客","全期花費":1037344,"全期名單":133,"全期CPL":7800,"近7日花費":110076,"近7日名單":5,"近7日CPL":22015,"當日花費":17791,"當日名單":0,"target":8000,"trend14":[{"date":"2026-04-18","花費":25094,"leads":1,"CPL":25094},{"date":"2026-04-19","花費":31619,"leads":2,"CPL":15810},{"date":"2026-04-20","花費":25563,"leads":0,"CPL":null},{"date":"2026-04-21","花費":15010,"leads":2,"CPL":7505},{"date":"2026-04-22","花費":16130,"leads":2,"CPL":8065},{"date":"2026-04-23","花費":14705,"leads":3,"CPL":4902},{"date":"2026-04-24","花費":13826,"leads":2,"CPL":6913},{"date":"2026-04-25","花費":14346,"leads":0,"CPL":null},{"date":"2026-04-26","花費":15551,"leads":1,"CPL":15551},{"date":"2026-04-27","花費":14019,"leads":2,"CPL":7010},{"date":"2026-04-28","花費":15858,"leads":1,"CPL":15858},{"date":"2026-04-29","花費":17630,"leads":1,"CPL":17630},{"date":"2026-04-30","花費":14881,"leads":0,"CPL":null},{"date":"2026-05-01","花費":17791,"leads":0,"CPL":null}],"latest":"2026-05-01"},{"clinic":"🏥 佳醫美人","sub":"名單型廣告","全期花費":125209,"全期名單":176,"全期CPL":711,"近7日花費":7786,"近7日名單":27,"近7日CPL":288,"當日花費":1851,"當日名單":5,"target":1000,"trend14":[{"date":"2026-04-18","花費":7012,"leads":5,"CPL":1402},{"date":"2026-04-19","花費":9198,"leads":5,"CPL":1840},{"date":"2026-04-20","花費":8127,"leads":11,"CPL":739},{"date":"2026-04-21","花費":5012,"leads":5,"CPL":1002},{"date":"2026-04-22","花費":1945,"leads":6,"CPL":324},{"date":"2026-04-23","花費":920,"leads":2,"CPL":460},{"date":"2026-04-24","花費":932,"leads":4,"CPL":233},{"date":"2026-04-25","花費":770,"leads":2,"CPL":385},{"date":"2026-04-26","花費":1228,"leads":6,"CPL":205},{"date":"2026-04-27","花費":1026,"leads":3,"CPL":342},{"date":"2026-04-28","花費":1080,"leads":6,"CPL":180},{"date":"2026-04-29","花費":950,"leads":1,"CPL":950},{"date":"2026-04-30","花費":881,"leads":4,"CPL":220},{"date":"2026-05-01","花費":1851,"leads":5,"CPL":370}],"latest":"2026-05-01"},{"clinic":"🏥 佳醫美人","sub":"潛在顧客(直接預約)","全期花費":163396,"全期名單":16,"全期CPL":10212,"近7日花費":20120,"近7日名單":2,"近7日CPL":10060,"當日花費":3616,"當日名單":0,"target":8000,"trend14":[{"date":"2026-04-18","花費":10336,"leads":2,"CPL":5168},{"date":"2026-04-19","花費":8888,"leads":0,"CPL":null},{"date":"2026-04-20","花費":8090,"leads":0,"CPL":null},{"date":"2026-04-21","花費":5438,"leads":0,"CPL":null},{"date":"2026-04-22","花費":2622,"leads":0,"CPL":null},{"date":"2026-04-23","花費":1950,"leads":1,"CPL":1950},{"date":"2026-04-24","花費":2183,"leads":0,"CPL":null},{"date":"2026-04-25","花費":2688,"leads":0,"CPL":null},{"date":"2026-04-26","花費":2876,"leads":2,"CPL":1438},{"date":"2026-04-27","花費":2794,"leads":0,"CPL":null},{"date":"2026-04-28","花費":2661,"leads":0,"CPL":null},{"date":"2026-04-29","花費":3020,"leads":0,"CPL":null},{"date":"2026-04-30","花費":2465,"leads":0,"CPL":null},{"date":"2026-05-01","花費":3616,"leads":0,"CPL":null}],"latest":"2026-05-01"}],"clinics":{"hk":{"name":"🇭🇰 香港 (Cofit)","short":"香港","has_subcamps":false,"main":{"name":"潛在顧客","target_cpl":8000,"period":"2026-02-01 ~ 2026-05-01","latest_date":"2026-05-01","kpi":{"overall":{"花費":1037344,"名單":133,"CPL":7800,"曝光":1393392,"CPM":744.47},"last7":{"花費":110076,"名單":5,"CPL":22015,"曝光":104874,"CPM":1049.6},"today":{"花費":17791,"名單":0,"CPL":null,"曝光":16971,"CPM":1048.32}},"trend":[{"date":"2026-02-01","花費":3420,"leads":0,"CPL":null},{"date":"2026-02-02","花費":3725,"leads":0,"CPL":null},{"date":"2026-02-03","花費":4945,"leads":1,"CPL":4945},{"date":"2026-02-04","花費":5171,"leads":0,"CPL":null},{"date":"2026-02-05","花費":3871,"leads":2,"CPL":1936},{"date":"2026-02-06","花費":3260,"leads":2,"CPL":1630},{"date":"2026-02-07","花費":2889,"leads":0,"CPL":null},{"date":"2026-02-08","花費":4391,"leads":1,"CPL":4391},{"date":"2026-02-09","花費":3886,"leads":0,"CPL":null},{"date":"2026-02-10","花費":3473,"leads":0,"CPL":null},{"date":"2026-02-11","花費":3018,"leads":1,"CPL":3018},{"date":"2026-02-12","花費":2679,"leads":2,"CPL":1340},{"date":"2026-02-13","花費":2755,"leads":1,"CPL":2755},{"date":"2026-02-14","花費":2266,"leads":1,"CPL":2266},{"date":"2026-02-15","花費":3370,"leads":2,"CPL":1685},{"date":"2026-02-16","花費":3307,"leads":1,"CPL":3307},{"date":"2026-02-17","花費":3568,"leads":2,"CPL":1784},{"date":"2026-02-18","花費":5163,"leads":1,"CPL":5163},{"date":"2026-02-19","花費":6858,"leads":2,"CPL":3429},{"date":"2026-02-20","花費":6340,"leads":2,"CPL":3170},{"date":"2026-02-21","花費":5819,"leads":1,"CPL":5819},{"date":"2026-02-22","花費":7618,"leads":1,"CPL":7618},{"date":"2026-02-23","花費":6841,"leads":4,"CPL":1710},{"date":"2026-02-24","花費":9151,"leads":1,"CPL":9151},{"date":"2026-02-25","花費":10742,"leads":2,"CPL":5371},{"date":"2026-02-26","花費":10430,"leads":1,"CPL":10430},{"date":"2026-02-27","花費":9796,"leads":2,"CPL":4898},{"date":"2026-02-28","花費":9782,"leads":2,"CPL":4891},{"date":"2026-03-01","花費":11818,"leads":3,"CPL":3939},{"date":"2026-03-02","花費":10403,"leads":2,"CPL":5202},{"date":"2026-03-03","花費":10369,"leads":0,"CPL":null},{"date":"2026-03-04","花費":9977,"leads":1,"CPL":9977},{"date":"2026-03-05","花費":7758,"leads":2,"CPL":3879},{"date":"2026-03-06","花費":7275,"leads":1,"CPL":7275},{"date":"2026-03-07","花費":7557,"leads":1,"CPL":7557},{"date":"2026-03-08","花費":12404,"leads":3,"CPL":4135},{"date":"2026-03-09","花費":11142,"leads":3,"CPL":3714},{"date":"2026-03-10","花費":9600,"leads":2,"CPL":4800},{"date":"2026-03-11","花費":9352,"leads":3,"CPL":3117},{"date":"2026-03-12","花費":8649,"leads":1,"CPL":8649},{"date":"2026-03-13","花費":6632,"leads":2,"CPL":3316},{"date":"2026-03-14","花費":5598,"leads":0,"CPL":null},{"date":"2026-03-15","花費":8546,"leads":3,"CPL":2849},{"date":"2026-03-16","花費":7753,"leads":0,"CPL":null},{"date":"2026-03-17","花費":9934,"leads":2,"CPL":4967},{"date":"2026-03-18","花費":14370,"leads":4,"CPL":3592},{"date":"2026-03-19","花費":15625,"leads":2,"CPL":7812},{"date":"2026-03-20","花費":11855,"leads":1,"CPL":11855},{"date":"2026-03-21","花費":12698,"leads":3,"CPL":4233},{"date":"2026-03-22","花費":16095,"leads":4,"CPL":4024},{"date":"2026-03-23","花費":15205,"leads":0,"CPL":null},{"date":"2026-03-24","花費":26884,"leads":1,"CPL":26884},{"date":"2026-03-25","花費":21400,"leads":7,"CPL":3057},{"date":"2026-03-26","花費":11793,"leads":2,"CPL":5896},{"date":"2026-03-27","花費":12827,"leads":0,"CPL":null},{"date":"2026-03-28","花費":9108,"leads":0,"CPL":null},{"date":"2026-03-29","花費":13903,"leads":1,"CPL":13903},{"date":"2026-03-30","花費":12589,"leads":0,"CPL":null},{"date":"2026-03-31","花費":15171,"leads":2,"CPL":7586},{"date":"2026-04-01","花費":14558,"leads":4,"CPL":3640},{"date":"2026-04-02","花費":11119,"leads":2,"CPL":5560},{"date":"2026-04-03","花費":9245,"leads":2,"CPL":4622},{"date":"2026-04-04","花費":9163,"leads":0,"CPL":null},{"date":"2026-04-05","花費":11753,"leads":2,"CPL":5876},{"date":"2026-04-06","花費":10837,"leads":1,"CPL":10837},{"date":"2026-04-07","花費":10768,"leads":1,"CPL":10768},{"date":"2026-04-08","花費":10837,"leads":3,"CPL":3612},{"date":"2026-04-09","花費":11408,"leads":0,"CPL":null},{"date":"2026-04-10","花費":14094,"leads":1,"CPL":14094},{"date":"2026-04-11","花費":18368,"leads":4,"CPL":4592},{"date":"2026-04-12","花費":21949,"leads":1,"CPL":21949},{"date":"2026-04-13","花費":18109,"leads":2,"CPL":9054},{"date":"2026-04-14","花費":17276,"leads":0,"CPL":null},{"date":"2026-04-15","花費":27981,"leads":1,"CPL":27981},{"date":"2026-04-16","花費":27212,"leads":1,"CPL":27212},{"date":"2026-04-17","花費":27820,"leads":0,"CPL":null},{"date":"2026-04-18","花費":25094,"leads":1,"CPL":25094},{"date":"2026-04-19","花費":31619,"leads":2,"CPL":15810},{"date":"2026-04-20","花費":25563,"leads":0,"CPL":null},{"date":"2026-04-21","花費":15010,"leads":2,"CPL":7505},{"date":"2026-04-22","花費":16130,"leads":2,"CPL":8065},{"date":"2026-04-23","花費":14705,"leads":3,"CPL":4902},{"date":"2026-04-24","花費":13826,"leads":2,"CPL":6913},{"date":"2026-04-25","花費":14346,"leads":0,"CPL":null},{"date":"2026-04-26","花費":15551,"leads":1,"CPL":15551},{"date":"2026-04-27","花費":14019,"leads":2,"CPL":7010},{"date":"2026-04-28","花費":15858,"leads":1,"CPL":15858},{"date":"2026-04-29","花費":17630,"leads":1,"CPL":17630},{"date":"2026-04-30","花費":14881,"leads":0,"CPL":null},{"date":"2026-05-01","花費":17791,"leads":0,"CPL":null}],"adset_all":[{"name":"NU_F_高熱量食物相關","花費":126089,"leads":17,"CPL":7417,"類型":"NU","建議":"🟡 維持"},{"name":"NU_F_生理相關+健康","花費":112345,"leads":15,"CPL":7490,"類型":"NU","建議":"🟡 維持"},{"name":"NU_F_ASC","花費":107605,"leads":14,"CPL":7686,"類型":"NU","建議":"🟡 維持"},{"name":"NU_F_比基尼相關","花費":93773,"leads":13,"CPL":7213,"類型":"NU","建議":"🟡 維持"},{"name":"NU_F_高階家電+健康相關","花費":89725,"leads":10,"CPL":8972,"類型":"NU","建議":"🟠 縮減"},{"name":"NU_F_身心健康相關","花費":73873,"leads":10,"CPL":7387,"類型":"NU","建議":"🟡 維持"},{"name":"NU_F_旅遊+健康相關","花費":55265,"leads":10,"CPL":5526,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_夜生活相關","花費":46559,"leads":5,"CPL":9312,"類型":"NU","建議":"🟠 縮減"},{"name":"NU_F_結婚相關","花費":43279,"leads":4,"CPL":10820,"類型":"NU","建議":"🟠 縮減"},{"name":"NU_F_外食相關","花費":39872,"leads":9,"CPL":4430,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_投資+健康相關","花費":39599,"leads":6,"CPL":6600,"類型":"NU","建議":"🟡 維持"},{"name":"NU_F_精品相關","花費":27005,"leads":0,"CPL":null,"類型":"NU","建議":"🔴 立即關閉"},{"name":"RT_PV180D_香港初日首頁","花費":26073,"leads":5,"CPL":5215,"類型":"RT","建議":"🟢 加碼"},{"name":"NU_F_精品+健康相關","花費":24143,"leads":7,"CPL":3449,"類型":"NU","建議":"🟢 加碼"},{"name":"RT_FPE365D_香港初日","花費":24046,"leads":2,"CPL":12023,"類型":"RT","建議":"🔴 立即關閉"},{"name":"NU_F_愛情x健康","花費":18343,"leads":3,"CPL":6114,"類型":"NU","建議":"🟡 維持"},{"name":"NU_F_類似廣告受眾 (1%) - 香港預約名單","花費":12044,"leads":1,"CPL":12044,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_社群焦慮","花費":11856,"leads":0,"CPL":null,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_個人護理","花費":9136,"leads":0,"CPL":null,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_瑜珈+健康相關","花費":8606,"leads":1,"CPL":8606,"類型":"NU","建議":"🟠 縮減"},{"name":"NU_F_金融高壓工作相關","花費":7216,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"RT_FPE初日&cofit","花費":6532,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"},{"name":"NU_F_類似廣告受眾 (1% to 3%) - 香港預約名單","花費":5281,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_A35_健康保健","花費":4940,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_銀髮運動+健康相關","花費":4176,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_減肥飲食法相關","花費":4159,"leads":1,"CPL":4159,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_睡眠相關+健康","花費":3801,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_健康保健相關","花費":3106,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_甜點咖啡+健康相關","花費":2549,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_演唱會興趣","花費":2302,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_醫美+健康相關","花費":2279,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_動漫+健康","花費":1597,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_F55-64","花費":170,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"}],"adset_7d":[{"name":"NU_F_比基尼相關","花費":17857,"leads":0,"CPL":null,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_高熱量食物相關","花費":15188,"leads":0,"CPL":null,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_愛情x健康","花費":13290,"leads":2,"CPL":6645,"類型":"NU","建議":"🟡 維持"},{"name":"NU_F_結婚相關","花費":8926,"leads":0,"CPL":null,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_生理相關+健康","花費":8572,"leads":0,"CPL":null,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_夜生活相關","花費":8472,"leads":0,"CPL":null,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_類似廣告受眾 (1%) - 香港預約名單","花費":7689,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"RT_PV180D_香港初日首頁","花費":7092,"leads":2,"CPL":3546,"類型":"RT","建議":"🟢 加碼"},{"name":"NU_F_身心健康相關","花費":3703,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_高階家電+健康相關","花費":3341,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_投資+健康相關","花費":2928,"leads":1,"CPL":2928,"類型":"NU","建議":"🟢 加碼"},{"name":"RT_FPE初日&cofit","花費":2528,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"},{"name":"NU_F_演唱會興趣","花費":2302,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_外食相關","花費":2171,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_金融高壓工作相關","花費":1530,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_類似廣告受眾 (1% to 3%) - 香港預約名單","花費":1446,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_減肥飲食法相關","花費":1294,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_瑜珈+健康相關","花費":898,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_精品+健康相關","花費":679,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_F55-64","花費":170,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"}],"demo":[{"性別":"female","年齡":"18-24","花費":8666,"leads":1,"CPL":8666},{"性別":"female","年齡":"25-34","花費":305759,"leads":43,"CPL":7111},{"性別":"female","年齡":"35-44","花費":361282,"leads":48,"CPL":7527},{"性別":"female","年齡":"45-54","花費":168501,"leads":20,"CPL":8425},{"性別":"female","年齡":"55-64","花費":35299,"leads":9,"CPL":3922},{"性別":"female","年齡":"65+","花費":36447,"leads":2,"CPL":18224},{"性別":"female","年齡":"Unknown","花費":39,"leads":0,"CPL":null},{"性別":"male","年齡":"18-24","花費":450,"leads":0,"CPL":null},{"性別":"male","年齡":"25-34","花費":36980,"leads":5,"CPL":7396},{"性別":"male","年齡":"35-44","花費":31590,"leads":3,"CPL":10530},{"性別":"male","年齡":"45-54","花費":20339,"leads":0,"CPL":null},{"性別":"male","年齡":"55-64","花費":6881,"leads":0,"CPL":null},{"性別":"male","年齡":"65+","花費":3219,"leads":0,"CPL":null},{"性別":"male","年齡":"Unknown","花費":2,"leads":0,"CPL":null},{"性別":"unknown","年齡":"18-24","花費":22,"leads":0,"CPL":null},{"性別":"unknown","年齡":"25-34","花費":3259,"leads":0,"CPL":null},{"性別":"unknown","年齡":"35-44","花費":8387,"leads":1,"CPL":8387},{"性別":"unknown","年齡":"45-54","花費":6591,"leads":1,"CPL":6591},{"性別":"unknown","年齡":"55-64","花費":2289,"leads":0,"CPL":null},{"性別":"unknown","年齡":"65+","花費":1342,"leads":0,"CPL":null}],"rt_vs_nu":[{"類型":"再行銷","花費":56651,"leads":7,"CPL":8093,"CPM":1031},{"類型":"開發新客","花費":980693,"leads":126,"CPL":7783,"CPM":733}],"ads":[{"name":"4月開診_cofithk_單圖_月份型_260325","花費全期":173559,"leads全期":17,"CPL全期":10209,"CTR全期":0.64,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"成功案例_古小姐_cofithk_單圖_案例型_260305","花費全期":119958,"leads全期":14,"CPL全期":8568,"CTR全期":0.96,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"3月開診_cofithk_單圖_月份型_260213","花費全期":104824,"leads全期":25,"CPL全期":4193,"CTR全期":0.65,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"香港環境介紹_cofithk_單圖_品牌通用型_250912","花費全期":57227,"leads全期":13,"CPL全期":4402,"CTR全期":0.46,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"新診間開箱_cofithk_多圖_品牌通用型_260128","花費全期":49401,"leads全期":12,"CPL全期":4117,"CTR全期":0.48,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"港味王小姐案例_cofithk_單圖_案例型_260402","花費全期":39441,"leads全期":3,"CPL全期":13147,"CTR全期":0.91,"花費7日":23446,"leads7日":2,"CPL7日":11723,"頻率7日":1.21,"狀態":"🟢 健康"},{"name":"新點位開箱影片_cofithk_影片_品牌通用型_260212","花費全期":38681,"leads全期":5,"CPL全期":7736,"CTR全期":6.15,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"成功案例_cofithk_輪播_案例型_260211","花費全期":35901,"leads全期":6,"CPL全期":5984,"CTR全期":0.77,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"6大荷爾蒙短影音_cofithk_影片_知識型_260423","花費全期":33324,"leads全期":5,"CPL全期":6665,"CTR全期":1.73,"花費7日":20676,"leads7日":1,"CPL7日":20676,"頻率7日":1.1,"狀態":"🟢 健康"},{"name":"好評回饋_cofithk_單圖_品牌通用型_260204","花費全期":32191,"leads全期":7,"CPL全期":4599,"CTR全期":1.08,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"鄧醫師減重案例_cofithk_影片_知識型_260318","花費全期":31568,"leads全期":2,"CPL全期":15784,"CTR全期":7.23,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"新點位開箱影片_cofithk_影片_品牌通用型_260401","花費全期":30565,"leads全期":2,"CPL全期":15282,"CTR全期":3.07,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"鄧醫師泡芙人_cofithk_影片_知識型_260323","花費全期":26141,"leads全期":1,"CPL全期":26141,"CTR全期":4.67,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"成功案例口碑_cofithk_單圖_案例型_260313","花費全期":25774,"leads全期":3,"CPL全期":8591,"CTR全期":1.14,"花費7日":11980,"leads7日":1,"CPL7日":11980,"頻率7日":1.26,"狀態":"🟢 健康"},{"name":"2月開診_cofithk_單圖_月份型_260204","花費全期":22604,"leads全期":6,"CPL全期":3767,"CTR全期":0.8,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"王小姐案例合照篇_cofithk_單圖_案例型_260306","花費全期":21293,"leads全期":2,"CPL全期":10646,"CTR全期":0.9,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"減重對比_cofithk_單圖_品牌痛點型_260417","花費全期":18943,"leads全期":2,"CPL全期":9472,"CTR全期":1.41,"花費7日":1652,"leads7日":0,"CPL7日":null,"頻率7日":1.13,"狀態":"🟢 健康"},{"name":"8週變夏日女神_cofithk_單圖_品牌痛點型_260402","花費全期":18597,"leads全期":1,"CPL全期":18597,"CTR全期":0.78,"花費7日":18597,"leads7日":1,"CPL7日":18597,"頻率7日":1.25,"狀態":"🟢 健康"},{"name":"李醫師減重別做三件事_cofithk_影片_知識型_260318","花費全期":17728,"leads全期":0,"CPL全期":null,"CTR全期":12.29,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"王小姐案例_cofithk_輪播_案例型_260313","花費全期":17200,"leads全期":1,"CPL全期":17200,"CTR全期":0.78,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"成功案例_宋小姐_cofithk_單圖_案例型_260305","花費全期":15733,"leads全期":1,"CPL全期":15733,"CTR全期":0.78,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"港味古小姐案例新版_cofithk_單圖_案例型_260415","花費全期":15033,"leads全期":1,"CPL全期":15033,"CTR全期":0.62,"花費7日":4411,"leads7日":0,"CPL7日":null,"頻率7日":1.07,"狀態":"🟢 健康"},{"name":"診間開箱初日粉專宣傳_初日粉專_影片_品牌通用型_260429","花費全期":14782,"leads全期":0,"CPL全期":null,"CTR全期":1.11,"花費7日":14782,"leads7日":0,"CPL7日":null,"頻率7日":1.09,"狀態":"🟢 健康"},{"name":"5月開診_cofithk_單圖_月份型_260421","花費全期":12969,"leads全期":1,"CPL全期":12969,"CTR全期":0.54,"花費7日":7982,"leads7日":0,"CPL7日":null,"頻率7日":1.19,"狀態":"🟢 健康"},{"name":"港味古小姐案例_cofithk_單圖_案例型_260402","花費全期":12684,"leads全期":0,"CPL全期":null,"CTR全期":0.68,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"年後脂不宜持_cofithk_單圖_品牌痛點型_260218","花費全期":9774,"leads全期":0,"CPL全期":null,"CTR全期":1.17,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"看診流程_cofithk_輪播_品牌通用型_260204","花費全期":8821,"leads全期":2,"CPL全期":4410,"CTR全期":0.81,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"3月倒數_cofithk_單圖_月份型_260306","花費全期":6175,"leads全期":0,"CPL全期":null,"CTR全期":1.09,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"理想體態值得穩定投資_cofithk_單圖_品牌痛點型_260122","花費全期":6040,"leads全期":1,"CPL全期":6040,"CTR全期":1.38,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"2月門診倒數_cofithk_單圖_月份型_260213","花費全期":4344,"leads全期":0,"CPL全期":null,"CTR全期":0.99,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"8周突破減重停滯期_cofithk_單圖_品牌痛點型_260429","花費全期":3545,"leads全期":0,"CPL全期":null,"CTR全期":0.66,"花費7日":3545,"leads7日":0,"CPL7日":null,"頻率7日":1.21,"狀態":"🟢 健康"},{"name":"王小姐真實回饋_cofithk_單圖_案例型_260313","花費全期":3177,"leads全期":0,"CPL全期":null,"CTR全期":0.99,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"成功案例_馬小姐_cofithk_單圖_案例型_260305","花費全期":2741,"leads全期":0,"CPL全期":null,"CTR全期":0.77,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"想吃又不想胖_cofithk_影片_品牌通用型_260206","花費全期":2616,"leads全期":0,"CPL全期":null,"CTR全期":2.99,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"8周急速變fit_cofithk_單圖_品牌痛點型_260430","花費全期":2095,"leads全期":0,"CPL全期":null,"CTR全期":0.44,"花費7日":2095,"leads7日":0,"CPL7日":null,"頻率7日":1.13,"狀態":"🟢 健康"},{"name":"8周甩肉變S型_cofithk_單圖_品牌痛點型_260430","花費全期":910,"leads全期":0,"CPL全期":null,"CTR全期":0.52,"花費7日":910,"leads7日":0,"CPL7日":null,"頻率7日":1.27,"狀態":"🟢 健康"},{"name":"過年肥變萬年肥_cofithk_單圖_品牌痛點型_260218 - 複本","花費全期":613,"leads全期":0,"CPL全期":null,"CTR全期":1.69,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"領導品牌登港_cofithk_單圖_品牌通用型_251224","花費全期":328,"leads全期":0,"CPL全期":null,"CTR全期":0.86,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"過年肥變萬年肥_cofithk_單圖_品牌痛點型_260218","花費全期":44,"leads全期":0,"CPL全期":null,"CTR全期":0.0,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"}],"actions":[{"priority":"🔴 P0","action":"❗ 連續 3 日 0-1 名單緊急警示","target":"整體 HK 活動","reason":"4/29:1 / 4/30:0 / 5/1:0，3 日總花 46,691 TWD 僅 1 名單。痛點型素材沒救。立即執行下列 P0"},{"priority":"🔴 P0","action":"立即停掉 4 支痛點型素材","target":"8週變夏日女神 / 8周突破減重 / 8周急速變fit / 8周甩肉變S型","reason":"5/1 共燒 5,457 TWD / 0 名單；3 天累積 8K+ TWD / 0 名單。痛點型主題歷史 CPL 12,416 已驗證最差"},{"priority":"🔴 P0","action":"立即降預算 70%","target":"診間開箱初日粉專_影片_品牌通用型_260429","reason":"5/1 又燒 6,074 TWD（佔當日 34%）/ 0 名單。3 天連續最大花費但 0 轉換。先壓到測試水位"},{"priority":"🟢 P0","action":"加碼 6大荷爾蒙短影音","target":"6大荷爾蒙短影音_影片_知識型_260423","reason":"已重新開啟，5/1 才花 1,383 TWD，太小。歷史 CPL 6,388 是當前最佳，建議今日加 3-5x 預算"},{"priority":"🟢 P0","action":"加碼 5月開診","target":"5月開診_cofithk_單圖_月份型_260421","reason":"月份型歷史 CPL 4,193 最佳主題，5/1 才花 1,474 TWD 太小。立即拉到 3K-5K/天"},{"priority":"🟠 P1","action":"素材救援製作","target":"下一波必須以「月份型 + 知識型短影音」為主軸","reason":"數據已驗證：月份型 CPL 4,193、知識型 6,388；痛點型 12,416、案例型 10,171。下波製作別再做痛點型"}]}},"beauty":{"name":"🏥 佳醫美人 (台北仁愛)","short":"佳醫美人","has_subcamps":true,"subcamps":{"leadform":{"name":"名單型廣告","target_cpl":1000,"period":"2026-03-10 ~ 2026-05-01","latest_date":"2026-05-01","kpi":{"overall":{"花費":125209,"名單":176,"CPL":711,"曝光":164640,"CPM":760.5},"last7":{"花費":7786,"名單":27,"CPL":288,"曝光":8145,"CPM":955.92},"today":{"花費":1851,"名單":5,"CPL":370,"曝光":2145,"CPM":862.94}},"trend":[{"date":"2026-03-10","花費":762,"leads":2,"CPL":381},{"date":"2026-03-11","花費":1219,"leads":1,"CPL":1219},{"date":"2026-03-12","花費":1979,"leads":1,"CPL":1979},{"date":"2026-03-13","花費":1495,"leads":2,"CPL":748},{"date":"2026-03-14","花費":1932,"leads":2,"CPL":966},{"date":"2026-03-15","花費":2616,"leads":6,"CPL":436},{"date":"2026-03-16","花費":1944,"leads":2,"CPL":972},{"date":"2026-03-17","花費":1617,"leads":3,"CPL":539},{"date":"2026-03-18","花費":1409,"leads":2,"CPL":704},{"date":"2026-03-19","花費":1044,"leads":1,"CPL":1044},{"date":"2026-03-20","花費":920,"leads":0,"CPL":null},{"date":"2026-03-21","花費":1057,"leads":3,"CPL":352},{"date":"2026-03-22","花費":1293,"leads":4,"CPL":323},{"date":"2026-03-23","花費":1165,"leads":1,"CPL":1165},{"date":"2026-03-24","花費":993,"leads":1,"CPL":993},{"date":"2026-03-25","花費":1073,"leads":3,"CPL":358},{"date":"2026-03-26","花費":1572,"leads":1,"CPL":1572},{"date":"2026-03-27","花費":1057,"leads":0,"CPL":null},{"date":"2026-03-28","花費":1530,"leads":2,"CPL":765},{"date":"2026-03-29","花費":1889,"leads":7,"CPL":270},{"date":"2026-03-30","花費":1270,"leads":3,"CPL":423},{"date":"2026-03-31","花費":810,"leads":0,"CPL":null},{"date":"2026-04-01","花費":779,"leads":1,"CPL":779},{"date":"2026-04-02","花費":1299,"leads":1,"CPL":1299},{"date":"2026-04-03","花費":1734,"leads":3,"CPL":578},{"date":"2026-04-04","花費":1440,"leads":2,"CPL":720},{"date":"2026-04-05","花費":2023,"leads":4,"CPL":506},{"date":"2026-04-06","花費":1874,"leads":4,"CPL":468},{"date":"2026-04-07","花費":1525,"leads":1,"CPL":1525},{"date":"2026-04-08","花費":1887,"leads":2,"CPL":944},{"date":"2026-04-09","花費":1864,"leads":2,"CPL":932},{"date":"2026-04-10","花費":2092,"leads":0,"CPL":null},{"date":"2026-04-11","花費":4357,"leads":4,"CPL":1089},{"date":"2026-04-12","花費":5131,"leads":11,"CPL":466},{"date":"2026-04-13","花費":4086,"leads":8,"CPL":511},{"date":"2026-04-14","花費":4393,"leads":3,"CPL":1464},{"date":"2026-04-15","花費":6139,"leads":7,"CPL":877},{"date":"2026-04-16","花費":6321,"leads":5,"CPL":1264},{"date":"2026-04-17","花費":6687,"leads":6,"CPL":1114},{"date":"2026-04-18","花費":7012,"leads":5,"CPL":1402},{"date":"2026-04-19","花費":9198,"leads":5,"CPL":1840},{"date":"2026-04-20","花費":8127,"leads":11,"CPL":739},{"date":"2026-04-21","花費":5012,"leads":5,"CPL":1002},{"date":"2026-04-22","花費":1945,"leads":6,"CPL":324},{"date":"2026-04-23","花費":920,"leads":2,"CPL":460},{"date":"2026-04-24","花費":932,"leads":4,"CPL":233},{"date":"2026-04-25","花費":770,"leads":2,"CPL":385},{"date":"2026-04-26","花費":1228,"leads":6,"CPL":205},{"date":"2026-04-27","花費":1026,"leads":3,"CPL":342},{"date":"2026-04-28","花費":1080,"leads":6,"CPL":180},{"date":"2026-04-29","花費":950,"leads":1,"CPL":950},{"date":"2026-04-30","花費":881,"leads":4,"CPL":220},{"date":"2026-05-01","花費":1851,"leads":5,"CPL":370}],"adset_all":[{"name":"NU_F_台北大安區+減肥興趣","花費":41957,"leads":57,"CPL":736,"類型":"NU","建議":"🟡 維持"},{"name":"NU_F_台北大安區+夜生活興趣","花費":24726,"leads":40,"CPL":618,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_自信相關","花費":18281,"leads":37,"CPL":494,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_瑜伽相關","花費":10789,"leads":15,"CPL":719,"類型":"NU","建議":"🟡 維持"},{"name":"NU_F_專櫃保養品興趣","花費":9847,"leads":16,"CPL":615,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_上班族相關","花費":8917,"leads":5,"CPL":1783,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_夜生活相關","花費":2592,"leads":2,"CPL":1296,"類型":"NU","建議":"🟠 縮減"},{"name":"NU_F_健康保健相關","花費":2142,"leads":2,"CPL":1071,"類型":"NU","建議":"🟠 縮減"},{"name":"NU_F_台北周邊+減肥相關","花費":1320,"leads":1,"CPL":1320,"類型":"NU","建議":"🟠 縮減"},{"name":"NU_F_烘焙興趣","花費":1225,"leads":0,"CPL":null,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_投資+健康相關","花費":861,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_台北大安區+外食興趣","花費":604,"leads":1,"CPL":604,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_比基尼相關","花費":522,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_台北大安區+醫美相關","花費":329,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_身心健康相關","花費":287,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_類似廣告受眾 (TW, 1%) - PV180D_佳醫美人","花費":252,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"RT_FPE365D_佳醫美人","花費":191,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"},{"name":"RT_FPE初日&cofit","花費":181,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"},{"name":"RT_PV180D_初日","花費":165,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"},{"name":"RT_PV180D_佳醫美人","花費":21,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"}],"adset_7d":[{"name":"NU_F_自信相關","花費":2602,"leads":12,"CPL":217,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_台北大安區+減肥興趣","花費":2266,"leads":8,"CPL":283,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_專櫃保養品興趣","花費":1631,"leads":6,"CPL":272,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_台北大安區+夜生活興趣","花費":689,"leads":1,"CPL":689,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_上班族相關","花費":598,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"}],"demo":[{"性別":"female","年齡":"18-24","花費":13214,"leads":18,"CPL":734},{"性別":"female","年齡":"25-34","花費":26445,"leads":32,"CPL":826},{"性別":"female","年齡":"35-44","花費":26254,"leads":50,"CPL":525},{"性別":"female","年齡":"45-54","花費":19870,"leads":26,"CPL":764},{"性別":"female","年齡":"55-64","花費":9573,"leads":17,"CPL":563},{"性別":"female","年齡":"65+","花費":2583,"leads":1,"CPL":2583},{"性別":"female","年齡":"Unknown","花費":0,"leads":0,"CPL":null},{"性別":"male","年齡":"18-24","花費":3317,"leads":5,"CPL":663},{"性別":"male","年齡":"25-34","花費":7413,"leads":9,"CPL":824},{"性別":"male","年齡":"35-44","花費":6812,"leads":7,"CPL":973},{"性別":"male","年齡":"45-54","花費":4353,"leads":3,"CPL":1451},{"性別":"male","年齡":"55-64","花費":2892,"leads":5,"CPL":578},{"性別":"male","年齡":"65+","花費":1279,"leads":1,"CPL":1279},{"性別":"male","年齡":"Unknown","花費":0,"leads":0,"CPL":null},{"性別":"unknown","年齡":"18-24","花費":207,"leads":1,"CPL":207},{"性別":"unknown","年齡":"25-34","花費":345,"leads":1,"CPL":345},{"性別":"unknown","年齡":"35-44","花費":292,"leads":0,"CPL":null},{"性別":"unknown","年齡":"45-54","花費":221,"leads":0,"CPL":null},{"性別":"unknown","年齡":"55-64","花費":112,"leads":0,"CPL":null},{"性別":"unknown","年齡":"65+","花費":27,"leads":0,"CPL":null}],"rt_vs_nu":[{"類型":"再行銷","花費":558,"leads":0,"CPL":null,"CPM":754},{"類型":"開發新客","花費":124651,"leads":176,"CPL":708,"CPM":761}],"ads":[{"name":"佳醫美人_魏醫師_血糖造成情緒_知識型_260326","花費全期":48740,"leads全期":56,"CPL全期":870,"CTR全期":1.12,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"佳醫美人_夏日女神_品牌痛點型_260313","花費全期":46922,"leads全期":81,"CPL全期":579,"CTR全期":1.02,"花費7日":5977,"leads7日":24,"CPL7日":249,"頻率7日":1.15,"狀態":"🟢 健康"},{"name":"佳醫美人_3月門診開診_月份型_260310","花費全期":9289,"leads全期":13,"CPL全期":715,"CTR全期":1.06,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"佳醫美人_診間開箱影片_品牌痛點型_260417","花費全期":7757,"leads全期":10,"CPL全期":776,"CTR全期":1.11,"花費7日":1809,"leads7日":3,"CPL7日":603,"頻率7日":1.1,"狀態":"🟢 健康"},{"name":"佳醫美人_強強聯手三月開診_月份型_260313","花費全期":5785,"leads全期":11,"CPL全期":526,"CTR全期":0.91,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"佳醫美人_威龍醫師_急性糖尿病_知識型_260320","花費全期":2538,"leads全期":2,"CPL全期":1269,"CTR全期":1.18,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"佳醫美人_告別無效的體態管理_品牌痛點_260310","花費全期":2220,"leads全期":2,"CPL全期":1110,"CTR全期":0.96,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"佳醫美人_真正無修復期的減重_品牌痛點型_260313","花費全期":1025,"leads全期":1,"CPL全期":1025,"CTR全期":0.59,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"佳醫美人_醫美等級的減重標準_品牌痛點_260310","花費全期":933,"leads全期":0,"CPL全期":null,"CTR全期":0.46,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"}],"actions":[{"priority":"🟢 P1","action":"+50% 預算","target":"NU_F_自信相關","reason":"CPL 494（最佳）"},{"priority":"🟢 P1","action":"+50% 預算","target":"NU_F_台北大安區+夜生活興趣","reason":"CPL 618"},{"priority":"🟢 P1","action":"+50% 預算","target":"NU_F_專櫃保養品興趣","reason":"CPL 615"},{"priority":"🟠 P2","action":"縮減 50% 預算","target":"NU_F_上班族相關","reason":"CPL 1,783 超目標 78%"},{"priority":"🟢 P2","action":"新增測試組合","target":"自信相關衍生 / 大安區+專櫃保養 / 大安區+自信 / 熟齡形象 / LAL 1%-名單填單者","reason":"已分析黃金規律，可新增 5 組受眾測試"}]},"leadgen":{"name":"潛在顧客(直接預約)","target_cpl":8000,"period":"2026-03-03 ~ 2026-05-01","latest_date":"2026-05-01","kpi":{"overall":{"花費":163396,"名單":16,"CPL":10212,"曝光":328299,"CPM":497.7},"last7":{"花費":20120,"名單":2,"CPL":10060,"曝光":34090,"CPM":590.2},"today":{"花費":3616,"名單":0,"CPL":null,"曝光":7489,"CPM":482.84}},"trend":[{"date":"2026-03-03","花費":294,"leads":0,"CPL":null},{"date":"2026-03-04","花費":1790,"leads":0,"CPL":null},{"date":"2026-03-05","花費":1271,"leads":0,"CPL":null},{"date":"2026-03-06","花費":1115,"leads":1,"CPL":1115},{"date":"2026-03-07","花費":720,"leads":0,"CPL":null},{"date":"2026-03-08","花費":938,"leads":0,"CPL":null},{"date":"2026-03-09","花費":920,"leads":0,"CPL":null},{"date":"2026-03-10","花費":1017,"leads":0,"CPL":null},{"date":"2026-03-11","花費":950,"leads":0,"CPL":null},{"date":"2026-03-12","花費":869,"leads":2,"CPL":434},{"date":"2026-03-13","花費":654,"leads":0,"CPL":null},{"date":"2026-03-14","花費":474,"leads":0,"CPL":null},{"date":"2026-03-15","花費":809,"leads":0,"CPL":null},{"date":"2026-03-16","花費":484,"leads":0,"CPL":null},{"date":"2026-03-17","花費":646,"leads":1,"CPL":646},{"date":"2026-03-18","花費":545,"leads":0,"CPL":null},{"date":"2026-03-19","花費":518,"leads":1,"CPL":518},{"date":"2026-03-20","花費":579,"leads":0,"CPL":null},{"date":"2026-03-21","花費":1032,"leads":0,"CPL":null},{"date":"2026-03-22","花費":1225,"leads":0,"CPL":null},{"date":"2026-03-23","花費":964,"leads":0,"CPL":null},{"date":"2026-03-24","花費":965,"leads":1,"CPL":965},{"date":"2026-03-25","花費":1287,"leads":0,"CPL":null},{"date":"2026-03-26","花費":1481,"leads":0,"CPL":null},{"date":"2026-03-27","花費":1431,"leads":0,"CPL":null},{"date":"2026-03-28","花費":1697,"leads":0,"CPL":null},{"date":"2026-03-29","花費":1662,"leads":0,"CPL":null},{"date":"2026-03-30","花費":1527,"leads":1,"CPL":1527},{"date":"2026-03-31","花費":1199,"leads":0,"CPL":null},{"date":"2026-04-01","花費":1416,"leads":0,"CPL":null},{"date":"2026-04-02","花費":1692,"leads":1,"CPL":1692},{"date":"2026-04-03","花費":2958,"leads":0,"CPL":null},{"date":"2026-04-04","花費":2032,"leads":0,"CPL":null},{"date":"2026-04-05","花費":2532,"leads":1,"CPL":2532},{"date":"2026-04-06","花費":2872,"leads":0,"CPL":null},{"date":"2026-04-07","花費":2895,"leads":0,"CPL":null},{"date":"2026-04-08","花費":2510,"leads":1,"CPL":2510},{"date":"2026-04-09","花費":2636,"leads":0,"CPL":null},{"date":"2026-04-10","花費":2804,"leads":0,"CPL":null},{"date":"2026-04-11","花費":6550,"leads":0,"CPL":null},{"date":"2026-04-12","花費":6629,"leads":0,"CPL":null},{"date":"2026-04-13","花費":7025,"leads":1,"CPL":7025},{"date":"2026-04-14","花費":5849,"leads":0,"CPL":null},{"date":"2026-04-15","花費":6152,"leads":0,"CPL":null},{"date":"2026-04-16","花費":8876,"leads":0,"CPL":null},{"date":"2026-04-17","花費":9278,"leads":0,"CPL":null},{"date":"2026-04-18","花費":10336,"leads":2,"CPL":5168},{"date":"2026-04-19","花費":8888,"leads":0,"CPL":null},{"date":"2026-04-20","花費":8090,"leads":0,"CPL":null},{"date":"2026-04-21","花費":5438,"leads":0,"CPL":null},{"date":"2026-04-22","花費":2622,"leads":0,"CPL":null},{"date":"2026-04-23","花費":1950,"leads":1,"CPL":1950},{"date":"2026-04-24","花費":2183,"leads":0,"CPL":null},{"date":"2026-04-25","花費":2688,"leads":0,"CPL":null},{"date":"2026-04-26","花費":2876,"leads":2,"CPL":1438},{"date":"2026-04-27","花費":2794,"leads":0,"CPL":null},{"date":"2026-04-28","花費":2661,"leads":0,"CPL":null},{"date":"2026-04-29","花費":3020,"leads":0,"CPL":null},{"date":"2026-04-30","花費":2465,"leads":0,"CPL":null},{"date":"2026-05-01","花費":3616,"leads":0,"CPL":null}],"adset_all":[{"name":"NU_F_減肥飲食法相關","花費":26527,"leads":2,"CPL":13264,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_夜生活相關","花費":14433,"leads":1,"CPL":14433,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_個人護理+美容","花費":13922,"leads":2,"CPL":6961,"類型":"NU","建議":"🟡 維持"},{"name":"NU_F_烘焙興趣","花費":13911,"leads":1,"CPL":13911,"類型":"NU","建議":"🔴 立即關閉"},{"name":"RT_FPE初日&cofit","花費":12238,"leads":1,"CPL":12238,"類型":"RT","建議":"🔴 立即關閉"},{"name":"RT_PV180D_初日","花費":11100,"leads":1,"CPL":11100,"類型":"RT","建議":"🟠 縮減"},{"name":"NU_F_房地產投資+健康","花費":10322,"leads":1,"CPL":10322,"類型":"NU","建議":"🟠 縮減"},{"name":"NU_F_美容SPA","花費":10234,"leads":1,"CPL":10234,"類型":"NU","建議":"🟠 縮減"},{"name":"NU_F_高階家電+健康","花費":9240,"leads":0,"CPL":null,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_下午茶+健康","花費":8047,"leads":0,"CPL":null,"類型":"NU","建議":"🔴 立即關閉"},{"name":"NU_F_個人護理","花費":4982,"leads":1,"CPL":4982,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_高熱量食物","花費":4709,"leads":2,"CPL":2354,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_身心健康相關","花費":3970,"leads":3,"CPL":1323,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_Subway","花費":3492,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_百貨公司","花費":2805,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"RT_FPE180D_宋醫師","花費":2097,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"},{"name":"NU_F_比基尼相關","花費":1864,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_生理商品購買偏好","花費":1502,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_健康保健相關","花費":1374,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_台北周邊+減肥相關","花費":1370,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_台北大安區+醫美相關","花費":1336,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_產後媽媽","花費":1272,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_類似廣告受眾 (TW, 1%) - PV180D_佳醫美人","花費":893,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_台北大安區+減肥興趣","花費":674,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"RT_FPE365D_佳醫美人","花費":470,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"},{"name":"RT_FPE180D_鄧醫師","花費":407,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"},{"name":"RT_PV180D_佳醫美人","花費":205,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"}],"adset_7d":[{"name":"NU_F_個人護理","花費":4332,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_高熱量食物","花費":3663,"leads":2,"CPL":1832,"類型":"NU","建議":"🟢 加碼"},{"name":"NU_F_美容SPA","花費":2881,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_Subway","花費":2814,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_房地產投資+健康","花費":2374,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"NU_F_百貨公司","花費":2130,"leads":0,"CPL":null,"類型":"NU","建議":"⚪ 觀察期"},{"name":"RT_FPE180D_宋醫師","花費":1595,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"},{"name":"RT_FPE180D_鄧醫師","花費":331,"leads":0,"CPL":null,"類型":"RT","建議":"⚪ 觀察期"}],"demo":[{"性別":"female","年齡":"18-24","花費":1643,"leads":0,"CPL":null},{"性別":"female","年齡":"25-34","花費":27028,"leads":6,"CPL":4505},{"性別":"female","年齡":"35-44","花費":45257,"leads":4,"CPL":11314},{"性別":"female","年齡":"45-54","花費":46384,"leads":1,"CPL":46384},{"性別":"female","年齡":"55-64","花費":15575,"leads":2,"CPL":7788},{"性別":"female","年齡":"65+","花費":3404,"leads":1,"CPL":3404},{"性別":"female","年齡":"Unknown","花費":0,"leads":0,"CPL":null},{"性別":"male","年齡":"18-24","花費":1151,"leads":0,"CPL":null},{"性別":"male","年齡":"25-34","花費":5304,"leads":1,"CPL":5304},{"性別":"male","年齡":"35-44","花費":8168,"leads":1,"CPL":8168},{"性別":"male","年齡":"45-54","花費":5688,"leads":0,"CPL":null},{"性別":"male","年齡":"55-64","花費":1887,"leads":0,"CPL":null},{"性別":"male","年齡":"65+","花費":645,"leads":0,"CPL":null},{"性別":"male","年齡":"Unknown","花費":0,"leads":0,"CPL":null},{"性別":"unknown","年齡":"18-24","花費":26,"leads":0,"CPL":null},{"性別":"unknown","年齡":"25-34","花費":182,"leads":0,"CPL":null},{"性別":"unknown","年齡":"35-44","花費":558,"leads":0,"CPL":null},{"性別":"unknown","年齡":"45-54","花費":394,"leads":0,"CPL":null},{"性別":"unknown","年齡":"55-64","花費":37,"leads":0,"CPL":null},{"性別":"unknown","年齡":"65+","花費":65,"leads":0,"CPL":null}],"rt_vs_nu":[{"類型":"再行銷","花費":26517,"leads":2,"CPL":13258,"CPM":542},{"類型":"開發新客","花費":136879,"leads":14,"CPL":9777,"CPM":490}],"ads":[{"name":"診間開箱影片_品牌痛點型_cofit粉專_260417","花費全期":25551,"leads全期":4,"CPL全期":6388,"CTR全期":1.74,"花費7日":5963,"leads7日":2,"CPL7日":2982,"頻率7日":1.16,"狀態":"🟢 健康"},{"name":"夏日女神_品牌痛點型_260313","花費全期":23959,"leads全期":3,"CPL全期":7986,"CTR全期":0.83,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"一站式體態升級管理_品牌痛點型_cofit粉專_260402","花費全期":23855,"leads全期":1,"CPL全期":23855,"CTR全期":0.72,"花費7日":1120,"leads7日":0,"CPL7日":null,"頻率7日":1.23,"狀態":"🟢 健康"},{"name":"真正無修復期的減重_品牌痛點型_260313","花費全期":19269,"leads全期":1,"CPL全期":19269,"CTR全期":0.7,"花費7日":655,"leads7日":0,"CPL7日":null,"頻率7日":1.51,"狀態":"🟢 健康"},{"name":"4月門診開放預約_月份型_佳醫粉專_260320","花費全期":15879,"leads全期":1,"CPL全期":15879,"CTR全期":0.68,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"環境介紹_品牌通用_260304","花費全期":14917,"leads全期":1,"CPL全期":14917,"CTR全期":0.46,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"5月門診開放預約_月份型_cofit粉專_260423","花費全期":9285,"leads全期":0,"CPL全期":null,"CTR全期":0.69,"花費7日":7529,"leads7日":0,"CPL7日":null,"頻率7日":1.22,"狀態":"🟢 健康"},{"name":"4月門診開放預約_月份型_cofit粉專_260330","花費全期":7228,"leads全期":0,"CPL全期":null,"CTR全期":0.76,"花費7日":66,"leads7日":0,"CPL7日":null,"頻率7日":1.64,"狀態":"⚪ 已停跑"},{"name":"魏醫師_血糖造成情緒_知識型_260320","花費全期":4286,"leads全期":0,"CPL全期":null,"CTR全期":2.17,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"強強聯手三月開診_月份型_260313","花費全期":3824,"leads全期":1,"CPL全期":3824,"CTR全期":0.72,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"內外科學控糖體雕_品牌痛點型_cofit粉專_260402","花費全期":3479,"leads全期":0,"CPL全期":null,"CTR全期":0.58,"花費7日":146,"leads7日":0,"CPL7日":null,"頻率7日":1.43,"狀態":"⚪ 已停跑"},{"name":"3月門診開診_月份型_260304","花費全期":2673,"leads全期":4,"CPL全期":668,"CTR全期":1.17,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"診間開箱影片_品牌痛點型_佳醫粉專_260429","花費全期":2045,"leads全期":0,"CPL全期":null,"CTR全期":2.25,"花費7日":2045,"leads7日":0,"CPL7日":null,"頻率7日":1.23,"狀態":"🟢 健康"},{"name":"威龍醫師_急性糖尿病_知識型_260320","花費全期":1935,"leads全期":0,"CPL全期":null,"CTR全期":2.03,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"一站式體態升級管理_品牌痛點型_佳醫粉專_260429","花費全期":1852,"leads全期":0,"CPL全期":null,"CTR全期":0.53,"花費7日":1852,"leads7日":0,"CPL7日":null,"頻率7日":1.1,"狀態":"🟢 健康"},{"name":"告別無效的體態管理_品牌痛點_260303","花費全期":1343,"leads全期":0,"CPL全期":null,"CTR全期":2.13,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"醫美等級的減重標準_品牌痛點_260303","花費全期":1272,"leads全期":0,"CPL全期":null,"CTR全期":1.36,"花費7日":null,"leads7日":0,"CPL7日":null,"頻率7日":null,"狀態":"⚪ 已停跑"},{"name":"環境介紹_品牌通用型_260429","花費全期":744,"leads全期":0,"CPL全期":null,"CTR全期":0.33,"花費7日":744,"leads7日":0,"CPL7日":null,"頻率7日":1.2,"狀態":"🟢 健康"}],"actions":[{"priority":"🔴 P1","action":"預算砍 60%","target":"整體潛在顧客活動","reason":"CPL 10,212 超目標 28%；多數組合 10K+ 沒救"},{"priority":"🟢 P1","action":"保留並加碼","target":"NU_F_身心健康相關 / 個人護理+美容 / 個人護理","reason":"CPL 1,323 / 6,961 / 4,982 達標"},{"priority":"🟠 P1","action":"預算移轉","target":"省下的預算移到名單型廣告","reason":"兩活動 CPL 差 14 倍，名單型遠遠划算"}]}}}}};
+
+const fmt = n => n==null? '—' : Number(n).toLocaleString('en-US');
+const cplColor = (c, target) => {
+  if (c==null) return '#9ca3af';
+  if (c <= target*0.7) return '#10b981';
+  if (c <= target) return '#84cc16';
+  if (c <= target*1.4) return '#f59e0b';
+  return '#ef4444';
+};
+const statusOf = (cpl, target) => {
+  if (cpl==null) return {cls:'status-warn', text:'待觀察'};
+  if (cpl <= target) return {cls:'status-good', text:'達標'};
+  if (cpl <= target*1.4) return {cls:'status-warn', text:'微超標'};
+  return {cls:'status-bad', text:'嚴重超標'};
+};
+
+// ===== OVERVIEW =====
+function renderOverview() {
+  const grid = document.getElementById('overviewGrid');
+  grid.innerHTML = '';
+  DATA.overview_cards.forEach((c, i) => {
+    const cpl7 = c['近7日CPL'];
+    const st = statusOf(cpl7, c.target);
+    const card = document.createElement('div');
+    card.className = 'clinic-card';
+    card.dataset.go = c.clinic.includes('香港') ? 'hk' : 'beauty';
+    card.dataset.sub = c.sub.includes('名單') ? 'leadform' : (c.sub.includes('潛在') ? 'leadgen' : '');
+    card.innerHTML = `
+      <div class="clinic-card-head">
+        <div>
+          <div class="clinic-card-name">${c.clinic}</div>
+          <div class="clinic-card-sub">${c.sub} · 目標 CPL ${fmt(c.target)} TWD</div>
+        </div>
+        <span class="clinic-card-status ${st.cls}">${st.text}</span>
+      </div>
+      <div class="clinic-card-kpis">
+        <div class="mini-kpi"><div class="mini-kpi-label">全期 CPL</div><div class="mini-kpi-value" style="color:${cplColor(c['全期CPL'],c.target)}">${fmt(c['全期CPL'])}</div></div>
+        <div class="mini-kpi"><div class="mini-kpi-label">近 7 日 CPL</div><div class="mini-kpi-value" style="color:${cplColor(cpl7,c.target)}">${fmt(cpl7)}</div></div>
+        <div class="mini-kpi"><div class="mini-kpi-label">近 7 日名單</div><div class="mini-kpi-value">${c['近7日名單']}</div></div>
+      </div>
+      <div class="clinic-card-sparkline"><canvas id="spark-${i}"></canvas></div>
+      <div class="clinic-card-foot">
+        <span>當日花費 ${fmt(c['當日花費'])} TWD / ${c['當日名單']} 名單</span>
+        <span>截至 ${c.latest}</span>
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      switchClinic(card.dataset.go);
+      if (card.dataset.sub) setTimeout(() => switchSub(card.dataset.sub), 50);
+    });
+    grid.appendChild(card);
+  });
+  // sparklines
+  DATA.overview_cards.forEach((c, i) => {
+    const ctx = document.getElementById('spark-'+i);
+    if (!ctx) return;
+    const t14 = c.trend14;
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: t14.map(x=>x.date.slice(5)),
+        datasets: [{
+          data: t14.map(x=>x.CPL),
+          borderColor: '#3b82f6', borderWidth: 2,
+          pointRadius: 0, tension: 0.3, spanGaps: true,
+          fill: true, backgroundColor: 'rgba(59,130,246,0.08)',
+        }, {
+          data: t14.map(()=>c.target),
+          borderColor: '#f59e0b', borderWidth: 1, borderDash: [3,3],
+          pointRadius: 0, tension: 0,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { displayColors: false } },
+        scales: { x: { display: false }, y: { display: false, beginAtZero: false } }
+      }
+    });
+  });
+
+  // Compare table
+  const tbl = document.getElementById('compareTable');
+  let h = `<thead><tr><th>院所/活動</th><th>目標CPL</th><th>全期花費</th><th>全期名單</th><th>全期CPL</th><th>近7日CPL</th><th>當日狀態</th></tr></thead><tbody>`;
+  DATA.overview_cards.forEach(c => {
+    const sd = statusOf(c['近7日CPL'], c.target);
+    const todayBadge = c['當日名單']>0 ? `<span style="color:#10b981">${c['當日名單']} 名單</span>` : `<span style="color:#ef4444">0 名單</span>`;
+    h += `<tr>
+      <td><b>${c.clinic}</b><br><span style="color:#6b7280;font-size:11px">${c.sub}</span></td>
+      <td>${fmt(c.target)}</td>
+      <td>${fmt(c['全期花費'])}</td>
+      <td>${c['全期名單']}</td>
+      <td style="color:${cplColor(c['全期CPL'],c.target)};font-weight:600">${fmt(c['全期CPL'])}</td>
+      <td style="color:${cplColor(c['近7日CPL'],c.target)};font-weight:600">${fmt(c['近7日CPL'])}</td>
+      <td>${todayBadge} · ${fmt(c['當日花費'])} TWD</td>
+    </tr>`;
+  });
+  h += '</tbody>';
+  tbl.innerHTML = h;
+
+  // Cross-clinic trend chart
+  const ctx = document.getElementById('overviewTrendChart');
+  // Normalize trend to last 14 days and use CPL ratio (CPL / target) for fair comparison
+  const datasets = DATA.overview_cards.map((c, idx) => {
+    const colors = ['#3b82f6', '#10b981', '#f59e0b'];
+    return {
+      label: `${c.clinic} - ${c.sub}`,
+      data: c.trend14.map(x => x.CPL!=null ? Math.round(x.CPL / c.target * 100) : null),
+      borderColor: colors[idx % colors.length],
+      backgroundColor: colors[idx % colors.length] + '22',
+      tension: 0.3, pointRadius: 2, spanGaps: true,
+    };
+  });
+  // X axis is dates from latest 14 days; pad missing dates
+  const allDates = new Set();
+  DATA.overview_cards.forEach(c => c.trend14.forEach(x => allDates.add(x.date)));
+  const sortedDates = Array.from(allDates).sort();
+  const ds2 = DATA.overview_cards.map((c, idx) => {
+    const colors = ['#3b82f6', '#10b981', '#f59e0b'];
+    const map = {}; c.trend14.forEach(x => { map[x.date] = x.CPL; });
+    return {
+      label: `${c.clinic} - ${c.sub}`,
+      data: sortedDates.map(d => map[d]!=null ? Math.round(map[d] / c.target * 100) : null),
+      borderColor: colors[idx % colors.length],
+      backgroundColor: colors[idx % colors.length] + '22',
+      tension: 0.3, pointRadius: 2, spanGaps: true,
+    };
+  });
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: sortedDates.map(d => d.slice(5)),
+      datasets: [...ds2, {
+        label: '目標 (100%)', data: sortedDates.map(()=>100),
+        borderColor: '#9ca3af', borderDash: [5,5], pointRadius: 0, fill: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction:{mode:'index',intersect:false},
+      plugins: { legend: { position:'top', labels: {boxWidth:10, font:{size:11}} },
+                 tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}% 目標CPL` } } },
+      scales: { y: { title: {display:true, text:'CPL / 目標 (%)'}, beginAtZero: true } }
+    }
+  });
+}
+
+// ===== Render a clinic / sub-campaign section =====
+const grids = {};
+function renderSection(containerId, sec) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = `
+    <h2>🎯 ${sec.name} - KPI 體檢</h2>
+    <div class="sub" style="margin-bottom:8px;">資料時間：${sec.period} · 目標 CPL ≤ ${fmt(sec.target_cpl)} TWD</div>
+    <div class="kpi-row" id="${containerId}-kpis"></div>
+
+    <h2>📈 每日成本與名單趨勢</h2>
+    <div class="section-card">
+      <div class="chart-wrap"><canvas id="${containerId}-trend"></canvas></div>
+    </div>
+
+    <h2>🚦 廣告組合健康體檢（紅黃綠燈）</h2>
+    <div class="section-card">
+      <div class="legend">
+        <span class="legend-pill">🟢 加碼 (CPL ≤ 目標70%)</span>
+        <span class="legend-pill">🟡 維持 (≤ 目標)</span>
+        <span class="legend-pill">🟠 縮減 (≤ 目標140%)</span>
+        <span class="legend-pill">🔴 立即關閉</span>
+        <span class="legend-pill">⚪ 觀察期</span>
+      </div>
+      <div class="sub-tabs" style="margin-bottom:8px;">
+        <div class="sub-tab active" data-scope="all">全期</div>
+        <div class="sub-tab" data-scope="7d">近 7 天</div>
+      </div>
+      <div id="${containerId}-adset"></div>
+    </div>
+
+    <h2>👥 受眾族群效益</h2>
+    <div class="section-card">
+      <div class="sub">顏色越深 = CPL 越高（越貴）；灰色 = 0 名單</div>
+      <div class="demo-grid" id="${containerId}-demo"></div>
+    </div>
+
+    <h2>🔁 再行銷 vs 開發新客</h2>
+    <div class="section-card">
+      <div class="chart-wrap-sm"><canvas id="${containerId}-rtnu"></canvas></div>
+      <div id="${containerId}-rtnuTbl" style="margin-top:10px;"></div>
+    </div>
+
+    <h2>🎨 素材疲勞度與表現</h2>
+    <div class="section-card">
+      <div id="${containerId}-ads"></div>
+    </div>
+
+    <h2>✅ 本期優先優化動作</h2>
+    <div class="section-card">
+      <div class="action-list" id="${containerId}-actions"></div>
+    </div>
+  `;
+
+  // KPI
+  const o = sec.kpi.overall, l7 = sec.kpi.last7, td = sec.kpi.today;
+  const target = sec.target_cpl;
+  const kp = document.getElementById(containerId+'-kpis');
+  function card(label, value, sub, cls) {
+    return `<div class="kpi-card"><div class="kpi-label">${label}</div><div class="kpi-value ${cls||''}">${value}</div><div class="kpi-sub">${sub||''}</div></div>`;
+  }
+  kp.innerHTML = [
+    card('全期 CPL', fmt(o.CPL)+' TWD', `目標 ${fmt(target)} · ${o.CPL && o.CPL<=target?'達標':'超標 '+(o.CPL?Math.round((o.CPL-target)/target*100)+'%':'')}`, o.CPL && o.CPL<=target?'kpi-good':'kpi-bad'),
+    card('近 7 日 CPL', fmt(l7.CPL)+' TWD', `${l7['名單']} 名單 / ${fmt(l7['花費'])} TWD`, l7.CPL && l7.CPL<=target?'kpi-good':'kpi-bad'),
+    card(`當日 (${sec.latest_date.slice(5)})`, td['名單']+' 名單', `花費 ${fmt(td['花費'])} TWD`, td['名單']>0?'kpi-good':'kpi-bad'),
+    card('全期累積', fmt(o['花費'])+' TWD', `${o['名單']} 名單 / ${fmt(o['曝光'])} 曝光`),
+  ].join('');
+
+  // Trend
+  const trend = sec.trend;
+  new Chart(document.getElementById(containerId+'-trend'), {
+    type: 'line',
+    data: {
+      labels: trend.map(t=>t.date.slice(5)),
+      datasets: [
+        { label:'花費 (TWD)', data: trend.map(t=>t['花費']), borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.1)', yAxisID:'y1', tension:0.3, pointRadius:1.5 },
+        { label:'名單', data: trend.map(t=>t.leads), borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.1)', yAxisID:'y2', tension:0.3, pointRadius:2 },
+        { label:'CPL', data: trend.map(t=>t.CPL), borderColor:'#ef4444', yAxisID:'y1', tension:0.3, pointRadius:1.5, spanGaps:true },
+        { label:'目標 CPL', data: trend.map(()=>target), borderColor:'#f59e0b', borderDash:[5,5], yAxisID:'y1', pointRadius:0 },
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:11}}}},
+      scales: { y1: {position:'left',title:{display:true,text:'TWD'}}, y2: {position:'right',title:{display:true,text:'名單'}, grid:{drawOnChartArea:false}, beginAtZero:true} }
+    }
+  });
+
+  // Ad Set with sub-tabs
+  function adsetRows(scope) {
+    const arr = scope==='all' ? sec.adset_all : sec.adset_7d;
+    return arr.map(r => [r['建議']||'', r.name, r['類型']||'', fmt(r['花費']), r.leads, r.CPL==null?'—':fmt(r.CPL)]);
+  }
+  function renderGrid(scope) {
+    const data = adsetRows(scope);
+    const t = target;
+    if (grids[containerId]) {
+      grids[containerId].updateConfig({data}).forceRender();
+    } else {
+      grids[containerId] = new gridjs.Grid({
+        columns: [
+          {name:'建議'},
+          {name:'廣告組合', width:'auto'},
+          {name:'類型'},
+          {name:'花費(TWD)', sort:{compare:(a,b)=>parseInt(String(a).replace(/,/g,''))-parseInt(String(b).replace(/,/g,''))}},
+          {name:'名單'},
+          {name:'CPL(TWD)', formatter:(c)=>gridjs.html(`<span style="color:${c==='—'?'#9ca3af':parseInt(String(c).replace(/,/g,''))<=t?'#10b981':'#ef4444'};font-weight:600">${c}</span>`)}
+        ],
+        data, sort:true, pagination:{limit:12}, style:{table:{'font-size':'12px'}}
+      });
+      grids[containerId].render(document.getElementById(containerId+'-adset'));
+    }
+  }
+  renderGrid('all');
+  c.querySelectorAll('.sub-tab[data-scope]').forEach(t => t.addEventListener('click', e => {
+    c.querySelectorAll('.sub-tab[data-scope]').forEach(x=>x.classList.remove('active'));
+    e.target.classList.add('active');
+    renderGrid(e.target.dataset.scope);
+  }));
+
+  // Demo
+  const ages = ['18-24','25-34','35-44','45-54','55-64','65+','Unknown'];
+  const genders = ['female','male','unknown'];
+  const dm = {}; sec.demo.forEach(d => dm[d['性別']+'|'+d['年齡']] = d);
+  let dh = '<div class="demo-cell demo-header">性別 \\ 年齡</div>';
+  ages.forEach(a => dh += `<div class="demo-cell demo-header">${a}</div>`);
+  genders.forEach(g => {
+    dh += `<div class="demo-cell demo-header">${g}</div>`;
+    ages.forEach(a => {
+      const d = dm[g+'|'+a];
+      if (!d) { dh += '<div class="demo-cell" style="color:#d1d5db">—</div>'; return; }
+      if (d.leads===0) {
+        dh += `<div class="demo-cell" style="background:#f3f4f6;color:#6b7280">花費 ${(d['花費']/1000).toFixed(0)}k<br>0 名單</div>`;
+      } else {
+        const col = cplColor(d.CPL, target);
+        dh += `<div class="demo-cell demo-value" style="background:${col}"><b>${fmt(d.CPL)}</b><br>${d.leads} 名單</div>`;
+      }
+    });
+  });
+  document.getElementById(containerId+'-demo').innerHTML = dh;
+
+  // RT vs NU
+  const rt = sec.rt_vs_nu;
+  new Chart(document.getElementById(containerId+'-rtnu'), {
+    type: 'bar',
+    data: {
+      labels: rt.map(r=>r['類型']),
+      datasets: [
+        { label:'CPL', data:rt.map(r=>r.CPL), backgroundColor:'#ef4444', yAxisID:'y' },
+        { label:'CPM', data:rt.map(r=>r.CPM), backgroundColor:'#3b82f6', yAxisID:'y' },
+        { label:'名單', data:rt.map(r=>r.leads), backgroundColor:'#10b981', yAxisID:'y2' },
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:11}}}},
+      scales:{y:{position:'left',title:{display:true,text:'TWD'}},y2:{position:'right',title:{display:true,text:'名單'},grid:{drawOnChartArea:false}}}}
+  });
+  new gridjs.Grid({
+    columns:['類型','花費(TWD)','名單','CPL','CPM'],
+    data: rt.map(r=>[r['類型'], fmt(r['花費']), r.leads, r.CPL==null?'—':fmt(r.CPL), fmt(r.CPM)]),
+    style:{table:{'font-size':'12px'}}
+  }).render(document.getElementById(containerId+'-rtnuTbl'));
+
+  // Ads
+  new gridjs.Grid({
+    columns:['狀態','廣告名稱','花費全期','leads全期','CPL全期','CTR全期','花費7日','CPL7日','頻率7日'],
+    data: sec.ads.map(a=>[a['狀態']||'', a.name, fmt(a['花費全期']), a['leads全期'],
+      a['CPL全期']==null?'—':fmt(a['CPL全期']), a['CTR全期']==null?'—':a['CTR全期']+'%',
+      a['花費7日']==null?'—':fmt(a['花費7日']), a['CPL7日']==null?'—':fmt(a['CPL7日']),
+      a['頻率7日']==null?'—':a['頻率7日']]),
+    sort:true, pagination:{limit:10}, style:{table:{'font-size':'11px'}}
+  }).render(document.getElementById(containerId+'-ads'));
+
+  // Actions
+  const al = document.getElementById(containerId+'-actions');
+  if (!sec.actions || sec.actions.length===0) {
+    al.innerHTML = '<div class="sub" style="padding:8px">本期無顯著優化動作。</div>';
+  } else {
+    sec.actions.forEach(a => {
+      let cls = '';
+      if (a.priority.includes('🔴') && a.priority.includes('P0')) cls='p0';
+      else if (a.priority.includes('🔴')) cls='p1';
+      else if (a.priority.includes('🟢')) cls='p1g';
+      else if (a.priority.includes('🟠')) cls='p2';
+      al.innerHTML += `<div class="action-row ${cls}">
+        <span class="priority">${a.priority}</span>
+        <span class="action-target">${a.action}</span>
+        <span>${a.target}</span>
+        <span class="action-reason">${a.reason}</span>
+      </div>`;
+    });
+  }
+}
+
+// Tab switching
+function switchClinic(c) {
+  document.querySelectorAll('.clinic-tab').forEach(t => t.classList.toggle('active', t.dataset.clinic===c));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id==='view-'+c));
+  // Lazy render
+  if (c==='hk' && !rendered.hk) { renderSection('view-hk', DATA.clinics.hk.main); rendered.hk = true; }
+  if (c==='beauty' && !rendered.beauty) {
+    renderSection('sub-leadform', DATA.clinics.beauty.subcamps.leadform);
+    renderSection('sub-leadgen', DATA.clinics.beauty.subcamps.leadgen);
+    rendered.beauty = true;
+  }
+}
+function switchSub(s) {
+  document.querySelectorAll('#beautySubTabs .sub-tab').forEach(t => t.classList.toggle('active', t.dataset.sub===s));
+  document.querySelectorAll('#view-beauty .subview').forEach(v => v.classList.toggle('active', v.id==='sub-'+s));
+}
+
+const rendered = { overview: false, hk: false, beauty: false };
+
+document.querySelectorAll('.clinic-tab').forEach(t => t.addEventListener('click', () => switchClinic(t.dataset.clinic)));
+document.querySelectorAll('#beautySubTabs .sub-tab').forEach(t => t.addEventListener('click', () => switchSub(t.dataset.sub)));
+
+renderOverview();
+rendered.overview = true;
+</script>
+</body>
+</html>
