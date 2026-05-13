@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>初日診所 多院所廣告 Dashboard v2</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/gridjs.umd.js" integrity="sha384-/XXDzxe4FsGiAe50i/u9pY/Vy/uX654MHB1xoc1BJNnH1WXHhqHga9g3q5tF4gj7" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/theme/mermaid.min.css" integrity="sha384-jZvDSsmGB9oGGT/4l9bHXGoAv1OxvG/cFmSo0dZaSqmBgvQTKDBFAMftlXTmMbNW" crossorigin="anonymous">
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang TC', 'Microsoft JhengHei', sans-serif; background:#f7f8fa; color:#222; margin:0; padding:16px; }
+h1 { font-size:22px; margin:0; }
+h2 { font-size:17px; margin:22px 0 10px; padding-bottom:6px; border-bottom:2px solid #e5e7eb; }
+h3 { font-size:15px; margin:14px 0 8px; color:#374151; }
+.header-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+.sub { color:#6b7280; font-size:13px; margin-top:4px; }
+.refresh-note { background:#fef3c7; border-left:4px solid #f59e0b; padding:8px 12px; border-radius:4px; font-size:12px; margin:8px 0 14px; color:#78350f; }
+.alert-note { background:#fef2f2; border-left:4px solid #dc2626; padding:10px 14px; border-radius:4px; font-size:13px; margin:8px 0 16px; color:#7f1d1d; }
+
+/* Currency toggle */
+.curr-toggle { display:inline-flex; gap:0; border:1px solid #d1d5db; border-radius:6px; overflow:hidden; }
+.curr-btn { padding:6px 12px; cursor:pointer; font-size:12px; background:white; border:none; color:#374151; }
+.curr-btn.active { background:#2563eb; color:white; }
+
+/* Top tabs */
+.clinic-tabs { display:flex; gap:4px; margin:14px 0 8px; flex-wrap:wrap; border-bottom:2px solid #d1d5db; }
+.clinic-tab { padding:9px 14px; cursor:pointer; font-size:13px; font-weight:600; border:2px solid transparent; border-bottom:none; border-radius:8px 8px 0 0; color:#6b7280; background:#f3f4f6; white-space:nowrap; }
+.clinic-tab.active { background:white; color:#111; border-color:#d1d5db; border-bottom:2px solid white; margin-bottom:-2px; }
+.clinic-tab .badge { font-size:10px; padding:1px 5px; border-radius:8px; margin-left:4px; background:#e5e7eb; color:#374151; }
+.clinic-tab .badge.bad { background:#fecaca; color:#991b1b; }
+.clinic-tab .badge.warn { background:#fde68a; color:#78350f; }
+.clinic-tab .badge.good { background:#bbf7d0; color:#065f46; }
+
+/* Sub tabs */
+.sub-tabs { display:flex; gap:4px; margin:8px 0 14px; flex-wrap:wrap; }
+.sub-tab { padding:5px 11px; cursor:pointer; font-size:12px; border:1px solid #d1d5db; border-radius:5px; background:white; color:#4b5563; }
+.sub-tab.active { background:#2563eb; color:white; border-color:#2563eb; }
+
+.view { display:none; }
+.view.active { display:block; }
+.subview { display:none; }
+.subview.active { display:block; }
+
+/* KPI cards */
+.kpi-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(155px, 1fr)); gap:8px; margin-bottom:14px; }
+.kpi-card { background:white; padding:11px 13px; border-radius:8px; border:1px solid #e5e7eb; }
+.kpi-label { font-size:11px; color:#6b7280; margin-bottom:3px; }
+.kpi-value { font-size:20px; font-weight:700; color:#111; }
+.kpi-sub { font-size:11px; color:#6b7280; margin-top:2px; }
+.kpi-good { color:#10b981; }
+.kpi-bad { color:#ef4444; }
+.kpi-warn { color:#f59e0b; }
+
+.section-card { background:white; border-radius:8px; border:1px solid #e5e7eb; padding:14px 16px; margin-bottom:14px; }
+.legend { display:flex; gap:10px; flex-wrap:wrap; font-size:11px; color:#4b5563; margin:8px 0; }
+.legend-pill { padding:3px 8px; border-radius:999px; background:#f3f4f6; }
+
+/* Overview cards */
+.overview-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:10px; margin-bottom:16px; }
+.clinic-card { background:white; border:1px solid #e5e7eb; border-radius:10px; padding:12px 14px; cursor:pointer; transition:all 0.15s; }
+.clinic-card:hover { border-color:#3b82f6; transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.05); }
+.clinic-card-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+.clinic-card-name { font-size:15px; font-weight:700; color:#111; }
+.clinic-card-sub { font-size:11px; color:#6b7280; }
+.clinic-card-status { font-size:10px; padding:2px 7px; border-radius:999px; font-weight:600; }
+.status-good { background:#d1fae5; color:#065f46; }
+.status-warn { background:#fef3c7; color:#78350f; }
+.status-bad { background:#fee2e2; color:#991b1b; }
+.clinic-card-kpis { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin:8px 0 4px; }
+.mini-kpi { background:#f9fafb; padding:6px 8px; border-radius:6px; }
+.mini-kpi-label { font-size:10px; color:#6b7280; }
+.mini-kpi-value { font-size:14px; font-weight:700; color:#111; }
+.partner-badge { background:#ede9fe; color:#5b21b6; font-size:10px; padding:1px 5px; border-radius:4px; }
+
+/* Demo heatmap */
+.demo-grid { display:grid; grid-template-columns:80px repeat(7, 1fr); gap:2px; font-size:11px; }
+.demo-cell { padding:5px 4px; text-align:center; border-radius:3px; }
+.demo-header { background:#f3f4f6; font-weight:600; padding:5px; font-size:11px; }
+.demo-value { color:white; font-size:11px; }
+
+/* Charts */
+canvas { max-width:100%; }
+.chart-wrap { position:relative; height:280px; }
+.chart-wrap-sm { position:relative; height:200px; }
+
+/* Funnel comparison widget */
+.funnel-compare { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:10px 0; }
+.funnel-side { padding:12px; border-radius:8px; border:1px solid #e5e7eb; }
+.funnel-side.funnel { background:#eff6ff; border-color:#bfdbfe; }
+.funnel-side.direct { background:#fff7ed; border-color:#fed7aa; }
+.funnel-stage { padding:8px 10px; margin:6px 0; background:white; border-radius:6px; border:1px solid #e5e7eb; }
+.funnel-stage-name { font-size:11px; color:#6b7280; }
+.funnel-stage-val { font-size:14px; font-weight:600; color:#111; }
+.funnel-result { padding:10px 12px; margin-top:10px; background:white; border-radius:6px; border:2px solid; }
+.funnel-result.winner { border-color:#10b981; }
+.funnel-result.loser { border-color:#ef4444; }
+.winner-label { color:#10b981; font-weight:700; font-size:12px; }
+.loser-label { color:#ef4444; font-weight:700; font-size:12px; }
+
+/* Actions */
+.action-list { display:flex; flex-direction:column; gap:5px; }
+.action-row { display:grid; grid-template-columns:60px 150px 1fr 2fr; gap:10px; padding:8px 10px; border-radius:6px; background:#f9fafb; align-items:center; font-size:13px; }
+.action-row.p0 { background:#fee2e2; border:1px solid #fca5a5; }
+.action-row.p1 { background:#fef2f2; }
+.action-row.p1g { background:#ecfdf5; }
+.action-row.p2 { background:#fff7ed; }
+.priority { font-weight:700; font-size:12px; }
+.action-target { font-weight:600; word-break:break-all; }
+.action-reason { color:#4b5563; font-size:12px; }
+
+/* Tables */
+.compare-table { width:100%; border-collapse:collapse; font-size:13px; }
+.compare-table th, .compare-table td { padding:8px 10px; text-align:left; border-bottom:1px solid #e5e7eb; }
+.compare-table th { background:#f9fafb; font-weight:600; font-size:12px; color:#4b5563; }
+
+.no-data { padding:20px; text-align:center; color:#9ca3af; font-size:13px; }
+
+@media (max-width: 720px) {
+  .action-row { grid-template-columns:1fr; gap:4px; }
+  .demo-grid { font-size:10px; grid-template-columns:60px repeat(7, 1fr); }
+  .funnel-compare { grid-template-columns:1fr; }
+  .clinic-tab { padding:7px 10px; font-size:12px; }
+}
+</style>
+
+<style id="pw-gate-css">
+#pw-gate {
+  position:fixed; inset:0; background:linear-gradient(135deg, #1e3a8a, #3b82f6);
+  display:flex; align-items:center; justify-content:center; z-index:99999;
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang TC','Microsoft JhengHei',Arial,sans-serif;
+}
+#pw-gate.hidden { display:none !important; }
+#pw-card {
+  background:white; padding:32px 36px; border-radius:14px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.3); width:340px; text-align:center;
+}
+#pw-card h1 { font-size:18px; margin:0 0 6px; color:#1e3a8a; }
+#pw-card .sub { color:#6b7280; font-size:13px; margin-bottom:18px; }
+#pw-input {
+  width:100%; padding:11px 14px; border:1px solid #d1d5db; border-radius:8px;
+  font-size:15px; box-sizing:border-box; margin-bottom:10px; outline:none;
+}
+#pw-input:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
+#pw-btn {
+  width:100%; padding:11px; background:#2563eb; color:white; border:none;
+  border-radius:8px; font-size:15px; font-weight:600; cursor:pointer;
+}
+#pw-btn:hover { background:#1d4ed8; }
+#pw-err { color:#dc2626; font-size:12px; margin-top:8px; min-height:16px; }
+#pw-foot { color:#9ca3af; font-size:11px; margin-top:18px; }
+body.pw-locked { overflow:hidden; }
+.pw-content { display:none; }
+body.pw-authed .pw-content { display:block; }
+body.pw-authed #pw-gate { display:none !important; }
+</style>
+
+</head>
+<body>
+
+<div id="pw-gate">
+  <div id="pw-card">
+    <div style="font-size:32px;margin-bottom:8px;">🔒</div>
+    <h1>初日診所 廣告 Dashboard</h1>
+    <div class="sub">內部團隊專用 · 請輸入密碼</div>
+    <input id="pw-input" type="password" placeholder="密碼" autocomplete="off" autofocus>
+    <button id="pw-btn">解鎖</button>
+    <div id="pw-err"></div>
+    <div id="pw-foot">迴聲行銷 · 機密資料請勿外流</div>
+  </div>
+</div>
+<script id="pw-gate-js">
+(function(){
+  const TARGET = '6a6317260f323e4160d20c5012794b57694c4f45192fcb5a675a363d57a2b93b';
+  const LS_KEY = 'cofit_dash_auth_v1';
+  async function sha256(s){
+    const buf = new TextEncoder().encode(s);
+    const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+  function authBody(){
+    document.body.classList.remove('pw-locked');
+    document.body.classList.add('pw-authed');
+  }
+  // Synchronously check cached auth - body exists since script is inside body
+  try {
+    const stored = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    if (stored && stored.hash === TARGET && (Date.now() - stored.ts) < 86400000*7) {
+      authBody();
+      return;
+    }
+  } catch(e){}
+  document.body.classList.add('pw-locked');
+  // Defer handler setup until DOM ready (so #pw-input/#pw-btn definitely exist)
+  function setup(){
+    const input = document.getElementById('pw-input');
+    const btn = document.getElementById('pw-btn');
+    const err = document.getElementById('pw-err');
+    if (!input || !btn) { setTimeout(setup, 30); return; }
+    async function tryUnlock(){
+      const h = await sha256(input.value);
+      if (h === TARGET) {
+        localStorage.setItem(LS_KEY, JSON.stringify({hash:h, ts:Date.now()}));
+        authBody();
+      } else {
+        err.textContent = '密碼錯誤';
+        input.value = '';
+        input.focus();
+        setTimeout(() => err.textContent = '', 2000);
+      }
+    }
+    btn.addEventListener('click', tryUnlock);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setup);
+  } else {
+    setup();
+  }
+})();
+</script>
+
+<div class="pw-content">
+
+<div class="header-row">
+  <div>
+    <h1>🏥 初日診所 多院所廣告 Dashboard <span style="font-size:13px; color:#6b7280; font-weight:normal;">v2 · 6 院所</span></h1>
+    <div class="sub">資料時間：<span id="period"></span> · 目標 CPA：5,000 TWD（卓越 ≤3,000）· 香港 CPL：8,000 TWD</div>
+  </div>
+  <div>
+    <span style="font-size:12px; color:#6b7280; margin-right:6px;">幣別</span>
+    <div class="curr-toggle">
+      <button class="curr-btn active" data-curr="TWD">TWD</button>
+      <button class="curr-btn" data-curr="USD">USD</button>
+    </div>
+  </div>
+</div>
+
+<div class="refresh-note">📌 每日上傳新數據後告訴 Claude「更新 dashboard」即可同步刷新。所有金額預設 TWD（匯率 31.5），可即時切換 USD。</div>
+
+<div style="background:#dbeafe; border-left:4px solid #2563eb; padding:12px 16px; border-radius:6px; margin:8px 0 14px;">
+  <div style="font-weight:700; color:#1e3a8a; margin-bottom:6px;">📚 學習期模式（Learning Phase）</div>
+  <div style="font-size:13px; color:#1e3a8a;">
+    所有院所自 <b>5/11</b> 換到新廣告帳戶，目前處於 Meta 學習期（需累積約 50 個轉換事件才能脫離）。
+    <b>5/11–5/25 期間</b>請勿做大幅調整：不要關閉 0 名單組合、不要改受眾、不要換素材、保持預算穩定。
+    <span style="display:inline-block; background:white; padding:2px 8px; border-radius:4px; margin-left:6px; font-size:12px;">
+      預估穩定期：<b>2026-05-25</b>
+    </span>
+  </div>
+  <div style="font-size:12px; color:#1e40af; margin-top:8px;">
+    <b>新帳戶清單</b>：
+    🏥 台北初日 <code>989487250200420</code> ·
+    🏥 高雄初日 <code>1492688779309395</code> 🟢 MCP 已啟用 ·
+    🏥 新竹初日 <code>2050247152507611</code> ·
+    🏥 初日_外部診所 <code>1006611621798447</code>（佳醫美人/廣川）
+  </div>
+  <div style="font-size:12px; color:#dc2626; margin-top:6px;">
+    ⚠️ 舊帳戶警示：S7_迴聲行銷_群健科技(初日診所)、崙禾_官網(初日) 及多個舊帳戶已被 Meta 標記異常活動並停用，須請客戶向 Meta 申訴或繼續使用新帳戶。
+  </div>
+</div>
+
+<div class="alert-note" id="globalAlert" style="display:none;"></div>
+
+<div class="clinic-tabs" id="clinicTabs"></div>
+
+<div class="view active" id="view-overview"></div>
+<div class="view" id="view-hk"></div>
+<div class="view" id="view-taipei"></div>
+<div class="view" id="view-kaohsiung"></div>
+<div class="view" id="view-hsinchu"></div>
+<div class="view" id="view-beauty"></div>
+<div class="view" id="view-broadriver"></div>
+
+<script>
+const DATA = {"meta":{"period":"2026-05-11 ~ 2026-05-12","usd_to_twd":31.5,"target_default":5000,"target_best":3000,"target_hk":8000},"clinics":{"hk":{"info":{"name":"🇭🇰 香港 (Cofit)","short":"香港","target":8000,"is_partner":false,"lead_col":"leads_web","landing":"events.cofit.me/cofithk-weightloss-36489"},"all":{"kpi":{"spend":44432,"leads":4,"cpa":11108,"imp":67731,"clicks":1417,"ctr":2.09,"cpm":656,"v3s":3905,"v25":2277,"v50":1478,"v75":689,"v100":339,"cpv3s":11.38,"completion_rate":8.7},"adsets":[{"name":"NU_F_瑜珈+健康相關","spend":16455,"leads":1,"cpa":16455,"ctr":0.96,"aud_type":"開發新客","status":"🔴 立即關閉"},{"name":"NU_F_比基尼相關","spend":7605,"leads":0,"cpa":null,"ctr":5.17,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_結婚相關","spend":7249,"leads":1,"cpa":7249,"ctr":2.25,"aud_type":"開發新客","status":"🟡 維持"},{"name":"NU_F_減肥飲食法相關","spend":5637,"leads":2,"cpa":2818,"ctr":1.45,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_愛情x健康","spend":5561,"leads":0,"cpa":null,"ctr":0.66,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_PV180D_香港初日首頁","spend":1544,"leads":0,"cpa":null,"ctr":3.14,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"NU_F_F55-64","spend":382,"leads":0,"cpa":null,"ctr":2.54,"aud_type":"開發新客","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"25-34","spend":9711,"leads":2,"cpa":4855},{"gender":"female","age":"35-44","spend":16961,"leads":1,"cpa":16961},{"gender":"female","age":"45-54","spend":11856,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":3589,"leads":1,"cpa":3589},{"gender":"female","age":"65+","spend":2315,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":1544,"leads":0,"cpa":null,"cpm":1615},{"type":"開發新客","spend":42889,"leads":4,"cpa":10722,"cpm":642}],"ads":[{"name":"5月開診_cofithk_單圖_月份型_260421","spend":25206,"leads":1,"cpa":25206,"ctr":0.48,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.27,"theme":"月份型"},{"name":"新點位開箱影片_cofithk_影片_品牌通用型_260401","spend":4255,"leads":0,"cpa":null,"ctr":16.17,"cpv3s":1.74,"v3s":2448,"v25":1765,"v50":1158,"v75":516,"v100":247,"completion":10.1,"freq":1.59,"theme":"品牌通用型"},{"name":"8周突破減重停滯期_cofithk_單圖_品牌痛點型_260429","spend":3789,"leads":2,"cpa":1895,"ctr":0.74,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.25,"theme":"痛點型"},{"name":"診間開箱_cofit粉專_影片_品牌通用型_260505","spend":3177,"leads":0,"cpa":null,"ctr":2.23,"cpv3s":2.53,"v3s":1258,"v25":478,"v50":304,"v75":163,"v100":85,"completion":6.8,"freq":1.14,"theme":"品牌通用型"},{"name":"港味王小姐案例_cofithk_單圖_案例型_260402","spend":3097,"leads":0,"cpa":null,"ctr":0.91,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.19,"theme":"案例型"},{"name":"減重對比_cofithk_單圖_品牌痛點型_260417","spend":1244,"leads":1,"cpa":1244,"ctr":1.45,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.41,"theme":"痛點型"},{"name":"6大荷爾蒙短影音_cofithk_影片_知識型_260423","spend":1084,"leads":0,"cpa":null,"ctr":2.02,"cpv3s":5.45,"v3s":199,"v25":34,"v50":16,"v75":10,"v100":7,"completion":3.5,"freq":1.08,"theme":"知識型"},{"name":"8周急速變fit_cofithk_單圖_品牌痛點型_260430","spend":1066,"leads":0,"cpa":null,"ctr":0.33,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.07,"theme":"痛點型"},{"name":"港味古小姐案例新版_cofithk_單圖_案例型_260415","spend":912,"leads":0,"cpa":null,"ctr":1.01,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.15,"theme":"案例型"},{"name":"8周甩肉變S型_cofithk_單圖_品牌痛點型_260430","spend":601,"leads":0,"cpa":null,"ctr":0.79,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.21,"theme":"痛點型"}],"themes":[{"theme":"品牌通用型","spend":7432,"leads":0,"cpa":null,"ctr":8.15},{"theme":"月份型","spend":25206,"leads":1,"cpa":25206,"ctr":0.48},{"theme":"案例型","spend":4010,"leads":0,"cpa":null,"ctr":0.93},{"theme":"痛點型","spend":6700,"leads":3,"cpa":2233,"ctr":0.76},{"theme":"知識型","spend":1084,"leads":0,"cpa":null,"ctr":2.02}]},"subcamps":{"lead":{"name":"潛在顧客","section":{"kpi":{"spend":44432,"leads":4,"cpa":11108,"imp":67731,"clicks":1417,"ctr":2.09,"cpm":656,"v3s":3905,"v25":2277,"v50":1478,"v75":689,"v100":339,"cpv3s":11.38,"completion_rate":8.7},"adsets":[{"name":"NU_F_瑜珈+健康相關","spend":16455,"leads":1,"cpa":16455,"ctr":0.96,"aud_type":"開發新客","status":"🔴 立即關閉"},{"name":"NU_F_比基尼相關","spend":7605,"leads":0,"cpa":null,"ctr":5.17,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_結婚相關","spend":7249,"leads":1,"cpa":7249,"ctr":2.25,"aud_type":"開發新客","status":"🟡 維持"},{"name":"NU_F_減肥飲食法相關","spend":5637,"leads":2,"cpa":2818,"ctr":1.45,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_愛情x健康","spend":5561,"leads":0,"cpa":null,"ctr":0.66,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_PV180D_香港初日首頁","spend":1544,"leads":0,"cpa":null,"ctr":3.14,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"NU_F_F55-64","spend":382,"leads":0,"cpa":null,"ctr":2.54,"aud_type":"開發新客","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"25-34","spend":9711,"leads":2,"cpa":4855},{"gender":"female","age":"35-44","spend":16961,"leads":1,"cpa":16961},{"gender":"female","age":"45-54","spend":11856,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":3589,"leads":1,"cpa":3589},{"gender":"female","age":"65+","spend":2315,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":1544,"leads":0,"cpa":null,"cpm":1615},{"type":"開發新客","spend":42889,"leads":4,"cpa":10722,"cpm":642}],"ads":[{"name":"5月開診_cofithk_單圖_月份型_260421","spend":25206,"leads":1,"cpa":25206,"ctr":0.48,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.27,"theme":"月份型"},{"name":"新點位開箱影片_cofithk_影片_品牌通用型_260401","spend":4255,"leads":0,"cpa":null,"ctr":16.17,"cpv3s":1.74,"v3s":2448,"v25":1765,"v50":1158,"v75":516,"v100":247,"completion":10.1,"freq":1.59,"theme":"品牌通用型"},{"name":"8周突破減重停滯期_cofithk_單圖_品牌痛點型_260429","spend":3789,"leads":2,"cpa":1895,"ctr":0.74,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.25,"theme":"痛點型"},{"name":"診間開箱_cofit粉專_影片_品牌通用型_260505","spend":3177,"leads":0,"cpa":null,"ctr":2.23,"cpv3s":2.53,"v3s":1258,"v25":478,"v50":304,"v75":163,"v100":85,"completion":6.8,"freq":1.14,"theme":"品牌通用型"},{"name":"港味王小姐案例_cofithk_單圖_案例型_260402","spend":3097,"leads":0,"cpa":null,"ctr":0.91,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.19,"theme":"案例型"},{"name":"減重對比_cofithk_單圖_品牌痛點型_260417","spend":1244,"leads":1,"cpa":1244,"ctr":1.45,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.41,"theme":"痛點型"},{"name":"6大荷爾蒙短影音_cofithk_影片_知識型_260423","spend":1084,"leads":0,"cpa":null,"ctr":2.02,"cpv3s":5.45,"v3s":199,"v25":34,"v50":16,"v75":10,"v100":7,"completion":3.5,"freq":1.08,"theme":"知識型"},{"name":"8周急速變fit_cofithk_單圖_品牌痛點型_260430","spend":1066,"leads":0,"cpa":null,"ctr":0.33,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.07,"theme":"痛點型"},{"name":"港味古小姐案例新版_cofithk_單圖_案例型_260415","spend":912,"leads":0,"cpa":null,"ctr":1.01,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.15,"theme":"案例型"},{"name":"8周甩肉變S型_cofithk_單圖_品牌痛點型_260430","spend":601,"leads":0,"cpa":null,"ctr":0.79,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.21,"theme":"痛點型"}],"themes":[{"theme":"品牌通用型","spend":7432,"leads":0,"cpa":null,"ctr":8.15},{"theme":"月份型","spend":25206,"leads":1,"cpa":25206,"ctr":0.48},{"theme":"案例型","spend":4010,"leads":0,"cpa":null,"ctr":0.93},{"theme":"痛點型","spend":6700,"leads":3,"cpa":2233,"ctr":0.76},{"theme":"知識型","spend":1084,"leads":0,"cpa":null,"ctr":2.02}]}}},"funnel_compare":null,"pixel_health":{"spend":44432,"clicks":1417,"web_leads":4,"meta_leads":0,"status":"🟡 偏低","click_to_lead_rate":0.28}},"taipei":{"info":{"name":"🏥 台北初日","short":"台北","target":5000,"is_partner":false,"lead_col":"leads_web","landing":"events.cofit.me/genesis-16369"},"all":{"kpi":{"spend":45978,"leads":0,"cpa":null,"imp":122247,"clicks":1138,"ctr":0.93,"cpm":376,"v3s":17511,"v25":8294,"v50":5873,"v75":4133,"v100":2244,"cpv3s":2.63,"completion_rate":12.8},"adsets":[{"name":"ASC","spend":2641,"leads":0,"cpa":null,"ctr":0.44,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%","spend":2559,"leads":0,"cpa":null,"ctr":0.36,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"RT_PV30D初日","spend":2262,"leads":0,"cpa":null,"ctr":0.56,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_威龍醫師","spend":2132,"leads":0,"cpa":null,"ctr":1.6,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"ASC_威龍醫師","spend":2075,"leads":0,"cpa":null,"ctr":2.03,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_宋醫師","spend":2040,"leads":0,"cpa":null,"ctr":0.39,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_宋醫師","spend":2030,"leads":0,"cpa":null,"ctr":0.57,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_威龍醫師","spend":2010,"leads":0,"cpa":null,"ctr":1.72,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日","spend":1944,"leads":0,"cpa":null,"ctr":0.7,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"ASC_宋醫師","spend":1920,"leads":0,"cpa":null,"ctr":0.4,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_宋醫師","spend":1864,"leads":0,"cpa":null,"ctr":0.96,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"ASC_王醫師","spend":1775,"leads":0,"cpa":null,"ctr":0.37,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_許醫師","spend":1772,"leads":0,"cpa":null,"ctr":1.39,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"ASC_許醫師","spend":1741,"leads":0,"cpa":null,"ctr":1.49,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_許醫師","spend":1739,"leads":0,"cpa":null,"ctr":1.63,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_許醫師","spend":1724,"leads":0,"cpa":null,"ctr":1.24,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_周醫師","spend":1676,"leads":0,"cpa":null,"ctr":3.57,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_威龍醫師","spend":1619,"leads":0,"cpa":null,"ctr":2.29,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"ASC_周醫師","spend":1616,"leads":0,"cpa":null,"ctr":3.52,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_王醫師","spend":1612,"leads":0,"cpa":null,"ctr":0.27,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_王醫師","spend":1530,"leads":0,"cpa":null,"ctr":0.23,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_周醫師","spend":1384,"leads":0,"cpa":null,"ctr":2.68,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_video15sec180d_宋醫師_中層漏斗","spend":1194,"leads":0,"cpa":null,"ctr":0.63,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_周醫師","spend":1149,"leads":0,"cpa":null,"ctr":2.83,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_王醫師","spend":1131,"leads":0,"cpa":null,"ctr":0.73,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D宋醫師_宋醫師","spend":484,"leads":0,"cpa":null,"ctr":0.86,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_video10sec180d_宋醫師_上層漏斗","spend":357,"leads":0,"cpa":null,"ctr":0.1,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":714,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":6148,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":11580,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":11958,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":5373,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":1249,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":233,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":1662,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":2363,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":2916,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":1228,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":236,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":9,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":26,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":125,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":123,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":28,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":6,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":22420,"leads":0,"cpa":null,"cpm":538},{"type":"開發新客","spend":11767,"leads":0,"cpa":null,"cpm":274},{"type":"類似受眾","spend":11791,"leads":0,"cpa":null,"cpm":313}],"ads":[{"name":"台北初日_許醫師_初診流程大公開_台北初日粉專_單圖_品牌通用型_251021","spend":6976,"leads":0,"cpa":null,"ctr":1.44,"cpv3s":2.7,"v3s":2583,"v25":537,"v50":359,"v75":306,"v100":205,"completion":7.9,"freq":1.58,"theme":"品牌通用型"},{"name":"台北初日_周醫師_脂肪肝有救了_新版_初日粉專_影片_知識型_260424","spend":5825,"leads":0,"cpa":null,"ctr":3.33,"cpv3s":1.78,"v3s":3266,"v25":1372,"v50":854,"v75":645,"v100":466,"completion":14.3,"freq":1.55,"theme":"知識型"},{"name":"台北初日_不指定_5月開診_初日_單圖_月份型_260417","spend":5591,"leads":0,"cpa":null,"ctr":0.39,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.9,"theme":"月份型"},{"name":"台北初日_宋醫師_5月開診_宋醫師粉專_單圖_月份型_260417","spend":5363,"leads":0,"cpa":null,"ctr":0.49,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.82,"theme":"月份型"},{"name":"台北初日_威龍醫師_減重診所有用嗎_初日粉專_影片_知識型_250731","spend":3574,"leads":0,"cpa":null,"ctr":1.93,"cpv3s":3.55,"v3s":1006,"v25":390,"v50":215,"v75":129,"v100":72,"completion":7.2,"freq":1.49,"theme":"知識型"},{"name":"台北初日_不指定_好評回饋新版_初日_單圖_區域型_260320","spend":3472,"leads":0,"cpa":null,"ctr":0.62,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.86,"theme":"其他"},{"name":"台北初日_王醫師_不只瘦也要舒服輕盈_初日_單圖_品牌痛點型_260429","spend":3118,"leads":0,"cpa":null,"ctr":0.41,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.54,"theme":"痛點型"},{"name":"台北初日_威龍醫師_胰島素阻抗是什麼_初日粉專_影片_知識型_260302","spend":2273,"leads":0,"cpa":null,"ctr":1.93,"cpv3s":1.79,"v3s":1267,"v25":530,"v50":426,"v75":392,"v100":245,"completion":19.3,"freq":1.34,"theme":"知識型"},{"name":"台北初日_宋醫師_名醫實踐_宋醫師粉專_單圖_品牌通用型_250731","spend":1774,"leads":0,"cpa":null,"ctr":0.51,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.8,"theme":"品牌通用型"},{"name":"台北初日_王醫師_看到甜點就破功__初日粉專_單圖_品牌痛點型_251017","spend":1622,"leads":0,"cpa":null,"ctr":0.37,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.71,"theme":"痛點型"},{"name":"台北初日_宋醫師_想告別復胖_初日粉專_影片_知識型_260507","spend":1200,"leads":0,"cpa":null,"ctr":0.87,"cpv3s":5.53,"v3s":217,"v25":57,"v50":37,"v75":30,"v100":8,"completion":3.7,"freq":1.22,"theme":"知識型"},{"name":"台北初日_常態影片_陳威龍_肌少問題_初日_250529","spend":1059,"leads":0,"cpa":null,"ctr":1.82,"cpv3s":1.5,"v3s":707,"v25":188,"v50":141,"v75":81,"v100":34,"completion":4.8,"freq":1.17,"theme":"其他"},{"name":"宋醫師_下層漏斗_5月開診_260507","spend":913,"leads":0,"cpa":null,"ctr":0.79,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.71,"theme":"月份型"},{"name":"台北初日_王醫師_5月開診_王醫師粉專_單圖_月份型_260512","spend":655,"leads":0,"cpa":null,"ctr":0.54,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.17,"theme":"月份型"},{"name":"台北初日_王醫師_家庭照顧者的健康_初日粉專_單圖_品牌痛點型_251120","spend":653,"leads":0,"cpa":null,"ctr":0.16,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.19,"theme":"痛點型"},{"name":"台北初日_威龍醫師_肌膚不穩定_威龍醫師粉專_影片_知識型_250620","spend":562,"leads":0,"cpa":null,"ctr":2.01,"cpv3s":2.38,"v3s":236,"v25":62,"v50":37,"v75":24,"v100":13,"completion":5.5,"freq":1.48,"theme":"知識型"},{"name":"台北初日_威龍醫師_睡不好很可能是變胖的徵兆_威龍醫師粉專_影片_知識型_260409","spend":368,"leads":0,"cpa":null,"ctr":1.1,"cpv3s":2.96,"v3s":124,"v25":23,"v50":12,"v75":8,"v100":6,"completion":4.8,"freq":1.76,"theme":"知識型"},{"name":"宋醫師_中層漏斗_糖尿病診間個案_260211","spend":294,"leads":0,"cpa":null,"ctr":0.01,"cpv3s":0.07,"v3s":4303,"v25":2859,"v50":2217,"v75":1859,"v100":811,"completion":18.8,"freq":1.18,"theme":"其他"},{"name":"宋醫師_下層漏斗_名醫實踐_260218","spend":281,"leads":0,"cpa":null,"ctr":0.18,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.67,"theme":"其他"},{"name":"宋醫師_上層漏斗_總水量_260211","spend":216,"leads":0,"cpa":null,"ctr":0.51,"cpv3s":0.11,"v3s":1923,"v25":1746,"v50":1359,"v75":473,"v100":244,"completion":12.7,"freq":1.76,"theme":"其他"},{"name":"宋醫師_上層漏斗_想告別復胖_260211","spend":42,"leads":0,"cpa":null,"ctr":0.49,"cpv3s":0.07,"v3s":576,"v25":42,"v50":13,"v75":8,"v100":4,"completion":0.7,"freq":1.01,"theme":"其他"},{"name":"宋醫師_中層漏斗_胖才會得糖尿病_260211","spend":37,"leads":0,"cpa":null,"ctr":0.59,"cpv3s":0.08,"v3s":458,"v25":239,"v50":116,"v75":103,"v100":78,"completion":17.0,"freq":1.12,"theme":"其他"},{"name":"台北初日_不指定_夏日體重卡在高點_初日_單圖_品牌痛點型_260429","spend":36,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.2,"theme":"痛點型"},{"name":"宋醫師_上層漏斗_多巴鞍的奴隸_260211","spend":26,"leads":0,"cpa":null,"ctr":0.69,"cpv3s":0.09,"v3s":298,"v25":43,"v50":30,"v75":27,"v100":18,"completion":6.0,"freq":1.03,"theme":"其他"},{"name":"宋醫師_中層漏斗_用藥理念_260211","spend":26,"leads":0,"cpa":null,"ctr":0.44,"cpv3s":0.09,"v3s":285,"v25":47,"v50":18,"v75":13,"v100":11,"completion":3.9,"freq":1.08,"theme":"其他"},{"name":"宋醫師_上層漏斗_斷食頭暈血壓低_260211","spend":22,"leads":0,"cpa":null,"ctr":0.23,"cpv3s":0.09,"v3s":262,"v25":159,"v50":39,"v75":35,"v100":29,"completion":11.1,"freq":1.1,"theme":"其他"}],"themes":[{"theme":"其他","spend":5476,"leads":0,"cpa":null,"ctr":0.52},{"theme":"品牌通用型","spend":8750,"leads":0,"cpa":null,"ctr":1.14},{"theme":"月份型","spend":12521,"leads":0,"cpa":null,"ctr":0.46},{"theme":"痛點型","spend":5429,"leads":0,"cpa":null,"ctr":0.31},{"theme":"知識型","spend":13802,"leads":0,"cpa":null,"ctr":2.42}]},"subcamps":{"lead_with_dr":{"name":"指定醫師","section":{"kpi":{"spend":35021,"leads":0,"cpa":null,"imp":75318,"clicks":949,"ctr":1.26,"cpm":465,"v3s":9406,"v25":3159,"v50":2081,"v75":1615,"v100":1049,"cpv3s":3.72,"completion_rate":11.2},"adsets":[{"name":"NU_CRM LAL1%_威龍醫師","spend":2132,"leads":0,"cpa":null,"ctr":1.6,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"ASC_威龍醫師","spend":2075,"leads":0,"cpa":null,"ctr":2.03,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_宋醫師","spend":2040,"leads":0,"cpa":null,"ctr":0.39,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_宋醫師","spend":2030,"leads":0,"cpa":null,"ctr":0.57,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_威龍醫師","spend":2010,"leads":0,"cpa":null,"ctr":1.72,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"ASC_宋醫師","spend":1920,"leads":0,"cpa":null,"ctr":0.4,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_宋醫師","spend":1864,"leads":0,"cpa":null,"ctr":0.96,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"ASC_王醫師","spend":1775,"leads":0,"cpa":null,"ctr":0.37,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_許醫師","spend":1772,"leads":0,"cpa":null,"ctr":1.39,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"ASC_許醫師","spend":1741,"leads":0,"cpa":null,"ctr":1.49,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_許醫師","spend":1739,"leads":0,"cpa":null,"ctr":1.63,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_許醫師","spend":1724,"leads":0,"cpa":null,"ctr":1.24,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_周醫師","spend":1676,"leads":0,"cpa":null,"ctr":3.57,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_威龍醫師","spend":1619,"leads":0,"cpa":null,"ctr":2.29,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"ASC_周醫師","spend":1616,"leads":0,"cpa":null,"ctr":3.52,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_王醫師","spend":1612,"leads":0,"cpa":null,"ctr":0.27,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_王醫師","spend":1530,"leads":0,"cpa":null,"ctr":0.23,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_周醫師","spend":1384,"leads":0,"cpa":null,"ctr":2.68,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_周醫師","spend":1149,"leads":0,"cpa":null,"ctr":2.83,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_王醫師","spend":1131,"leads":0,"cpa":null,"ctr":0.73,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D宋醫師_宋醫師","spend":484,"leads":0,"cpa":null,"ctr":0.86,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":560,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":4458,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":8764,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":9286,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":4129,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":826,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":199,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":1286,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":1816,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":2345,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":966,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":148,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":8,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":14,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":93,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":102,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":18,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":3,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":16663,"leads":0,"cpa":null,"cpm":729},{"type":"開發新客","spend":9126,"leads":0,"cpa":null,"cpm":339},{"type":"類似受眾","spend":9232,"leads":0,"cpa":null,"cpm":361}],"ads":[{"name":"台北初日_許醫師_初診流程大公開_台北初日粉專_單圖_品牌通用型_251021","spend":6976,"leads":0,"cpa":null,"ctr":1.44,"cpv3s":2.7,"v3s":2583,"v25":537,"v50":359,"v75":306,"v100":205,"completion":7.9,"freq":1.58,"theme":"品牌通用型"},{"name":"台北初日_周醫師_脂肪肝有救了_新版_初日粉專_影片_知識型_260424","spend":5825,"leads":0,"cpa":null,"ctr":3.33,"cpv3s":1.78,"v3s":3266,"v25":1372,"v50":854,"v75":645,"v100":466,"completion":14.3,"freq":1.55,"theme":"知識型"},{"name":"台北初日_宋醫師_5月開診_宋醫師粉專_單圖_月份型_260417","spend":5363,"leads":0,"cpa":null,"ctr":0.49,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.82,"theme":"月份型"},{"name":"台北初日_威龍醫師_減重診所有用嗎_初日粉專_影片_知識型_250731","spend":3574,"leads":0,"cpa":null,"ctr":1.93,"cpv3s":3.55,"v3s":1006,"v25":390,"v50":215,"v75":129,"v100":72,"completion":7.2,"freq":1.49,"theme":"知識型"},{"name":"台北初日_王醫師_不只瘦也要舒服輕盈_初日_單圖_品牌痛點型_260429","spend":3118,"leads":0,"cpa":null,"ctr":0.41,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.54,"theme":"痛點型"},{"name":"台北初日_威龍醫師_胰島素阻抗是什麼_初日粉專_影片_知識型_260302","spend":2273,"leads":0,"cpa":null,"ctr":1.93,"cpv3s":1.79,"v3s":1267,"v25":530,"v50":426,"v75":392,"v100":245,"completion":19.3,"freq":1.34,"theme":"知識型"},{"name":"台北初日_宋醫師_名醫實踐_宋醫師粉專_單圖_品牌通用型_250731","spend":1774,"leads":0,"cpa":null,"ctr":0.51,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.8,"theme":"品牌通用型"},{"name":"台北初日_王醫師_看到甜點就破功__初日粉專_單圖_品牌痛點型_251017","spend":1622,"leads":0,"cpa":null,"ctr":0.37,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.71,"theme":"痛點型"},{"name":"台北初日_宋醫師_想告別復胖_初日粉專_影片_知識型_260507","spend":1200,"leads":0,"cpa":null,"ctr":0.87,"cpv3s":5.53,"v3s":217,"v25":57,"v50":37,"v75":30,"v100":8,"completion":3.7,"freq":1.22,"theme":"知識型"},{"name":"台北初日_常態影片_陳威龍_肌少問題_初日_250529","spend":1059,"leads":0,"cpa":null,"ctr":1.82,"cpv3s":1.5,"v3s":707,"v25":188,"v50":141,"v75":81,"v100":34,"completion":4.8,"freq":1.17,"theme":"其他"},{"name":"台北初日_王醫師_5月開診_王醫師粉專_單圖_月份型_260512","spend":655,"leads":0,"cpa":null,"ctr":0.54,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.17,"theme":"月份型"},{"name":"台北初日_王醫師_家庭照顧者的健康_初日粉專_單圖_品牌痛點型_251120","spend":653,"leads":0,"cpa":null,"ctr":0.16,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.19,"theme":"痛點型"},{"name":"台北初日_威龍醫師_肌膚不穩定_威龍醫師粉專_影片_知識型_250620","spend":562,"leads":0,"cpa":null,"ctr":2.01,"cpv3s":2.38,"v3s":236,"v25":62,"v50":37,"v75":24,"v100":13,"completion":5.5,"freq":1.48,"theme":"知識型"},{"name":"台北初日_威龍醫師_睡不好很可能是變胖的徵兆_威龍醫師粉專_影片_知識型_260409","spend":368,"leads":0,"cpa":null,"ctr":1.1,"cpv3s":2.96,"v3s":124,"v25":23,"v50":12,"v75":8,"v100":6,"completion":4.8,"freq":1.76,"theme":"知識型"}],"themes":[{"theme":"其他","spend":1059,"leads":0,"cpa":null,"ctr":1.82},{"theme":"品牌通用型","spend":8750,"leads":0,"cpa":null,"ctr":1.14},{"theme":"月份型","spend":6017,"leads":0,"cpa":null,"ctr":0.5},{"theme":"痛點型","spend":5393,"leads":0,"cpa":null,"ctr":0.32},{"theme":"知識型","spend":13802,"leads":0,"cpa":null,"ctr":2.42}]}},"lead_no_dr":{"name":"不指定醫師","section":{"kpi":{"spend":9099,"leads":0,"cpa":null,"imp":30354,"clicks":133,"ctr":0.44,"cpm":300,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"cpv3s":null,"completion_rate":null},"adsets":[{"name":"NU_CRM LAL1%","spend":2559,"leads":0,"cpa":null,"ctr":0.36,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"ASC","spend":2334,"leads":0,"cpa":null,"ctr":0.43,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_PV30D初日","spend":2262,"leads":0,"cpa":null,"ctr":0.56,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日","spend":1944,"leads":0,"cpa":null,"ctr":0.7,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":141,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":1512,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":2530,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":2336,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":908,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":172,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":31,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":295,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":455,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":461,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":151,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":38,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":2,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":10,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":27,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":18,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":9,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":2,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":4206,"leads":0,"cpa":null,"cpm":668},{"type":"開發新客","spend":2334,"leads":0,"cpa":null,"cpm":195},{"type":"類似受眾","spend":2559,"leads":0,"cpa":null,"cpm":212}],"ads":[{"name":"台北初日_不指定_5月開診_初日_單圖_月份型_260417","spend":5591,"leads":0,"cpa":null,"ctr":0.39,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.9,"theme":"月份型"},{"name":"台北初日_不指定_好評回饋新版_初日_單圖_區域型_260320","spend":3472,"leads":0,"cpa":null,"ctr":0.62,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.86,"theme":"其他"},{"name":"台北初日_不指定_夏日體重卡在高點_初日_單圖_品牌痛點型_260429","spend":36,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.2,"theme":"痛點型"}],"themes":[{"theme":"其他","spend":3472,"leads":0,"cpa":null,"ctr":0.62},{"theme":"月份型","spend":5591,"leads":0,"cpa":null,"ctr":0.39},{"theme":"痛點型","spend":36,"leads":0,"cpa":null,"ctr":0.0}]}},"funnel_btm":{"name":"漏斗-下層","section":{"kpi":{"spend":1194,"leads":0,"cpa":null,"imp":4416,"clicks":28,"ctr":0.63,"cpm":270,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"cpv3s":null,"completion_rate":null},"adsets":[{"name":"RT_video15sec180d_宋醫師_中層漏斗","spend":1194,"leads":0,"cpa":null,"ctr":0.63,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":12,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":167,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":272,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":288,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":135,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":18,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":3,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":74,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":80,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":84,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":48,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":4,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":1,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":5,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":3,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":1,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":0,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":1194,"leads":0,"cpa":null,"cpm":270}],"ads":[{"name":"宋醫師_下層漏斗_5月開診_260507","spend":913,"leads":0,"cpa":null,"ctr":0.79,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.71,"theme":"月份型"},{"name":"宋醫師_下層漏斗_名醫實踐_260218","spend":281,"leads":0,"cpa":null,"ctr":0.18,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.67,"theme":"其他"}],"themes":[{"theme":"其他","spend":281,"leads":0,"cpa":null,"ctr":0.18},{"theme":"月份型","spend":913,"leads":0,"cpa":null,"ctr":0.79}]}},"funnel_mid":{"name":"漏斗-中層","section":{"kpi":{"spend":357,"leads":0,"cpa":null,"imp":8109,"clicks":8,"ctr":0.1,"cpm":44,"v3s":5046,"v25":3145,"v50":2351,"v75":1975,"v100":900,"cpv3s":0.07,"completion_rate":17.8},"adsets":[{"name":"RT_video10sec180d_宋醫師_上層漏斗","spend":357,"leads":0,"cpa":null,"ctr":0.1,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":0,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":3,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":4,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":21,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":117,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":137,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":0,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":2,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":2,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":7,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":36,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":27,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":0,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":357,"leads":0,"cpa":null,"cpm":44}],"ads":[{"name":"宋醫師_中層漏斗_糖尿病診間個案_260211","spend":294,"leads":0,"cpa":null,"ctr":0.01,"cpv3s":0.07,"v3s":4303,"v25":2859,"v50":2217,"v75":1859,"v100":811,"completion":18.8,"freq":1.18,"theme":"其他"},{"name":"宋醫師_中層漏斗_胖才會得糖尿病_260211","spend":37,"leads":0,"cpa":null,"ctr":0.59,"cpv3s":0.08,"v3s":458,"v25":239,"v50":116,"v75":103,"v100":78,"completion":17.0,"freq":1.12,"theme":"其他"},{"name":"宋醫師_中層漏斗_用藥理念_260211","spend":26,"leads":0,"cpa":null,"ctr":0.44,"cpv3s":0.09,"v3s":285,"v25":47,"v50":18,"v75":13,"v100":11,"completion":3.9,"freq":1.08,"theme":"其他"}],"themes":[{"theme":"其他","spend":357,"leads":0,"cpa":null,"ctr":0.1}]}},"funnel_top":{"name":"漏斗-上層","section":{"kpi":{"spend":306,"leads":0,"cpa":null,"imp":4050,"clicks":20,"ctr":0.49,"cpm":76,"v3s":3059,"v25":1990,"v50":1441,"v75":543,"v100":295,"cpv3s":0.1,"completion_rate":9.6},"adsets":[{"name":"ASC","spend":306,"leads":0,"cpa":null,"ctr":0.49,"aud_type":"開發新客","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":1,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":8,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":10,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":26,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":84,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":96,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":0,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":4,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":11,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":19,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":27,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":19,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":0,"leads":0,"cpa":null}],"audience_types":[{"type":"開發新客","spend":306,"leads":0,"cpa":null,"cpm":76}],"ads":[{"name":"宋醫師_上層漏斗_總水量_260211","spend":216,"leads":0,"cpa":null,"ctr":0.51,"cpv3s":0.11,"v3s":1923,"v25":1746,"v50":1359,"v75":473,"v100":244,"completion":12.7,"freq":1.76,"theme":"其他"},{"name":"宋醫師_上層漏斗_想告別復胖_260211","spend":42,"leads":0,"cpa":null,"ctr":0.49,"cpv3s":0.07,"v3s":576,"v25":42,"v50":13,"v75":8,"v100":4,"completion":0.7,"freq":1.01,"theme":"其他"},{"name":"宋醫師_上層漏斗_多巴鞍的奴隸_260211","spend":26,"leads":0,"cpa":null,"ctr":0.69,"cpv3s":0.09,"v3s":298,"v25":43,"v50":30,"v75":27,"v100":18,"completion":6.0,"freq":1.03,"theme":"其他"},{"name":"宋醫師_上層漏斗_斷食頭暈血壓低_260211","spend":22,"leads":0,"cpa":null,"ctr":0.23,"cpv3s":0.09,"v3s":262,"v25":159,"v50":39,"v75":35,"v100":29,"completion":11.1,"freq":1.1,"theme":"其他"}],"themes":[{"theme":"其他","spend":306,"leads":0,"cpa":null,"ctr":0.49}]}}},"funnel_compare":{"top":{"spend":306,"leads":0,"cpa":null,"imp":4050,"clicks":20,"ctr":0.49,"cpm":76,"v3s":3059,"v25":1990,"v50":1441,"v75":543,"v100":295,"cpv3s":0.1,"completion_rate":9.6},"mid":{"spend":357,"leads":0,"cpa":null,"imp":8109,"clicks":8,"ctr":0.1,"cpm":44,"v3s":5046,"v25":3145,"v50":2351,"v75":1975,"v100":900,"cpv3s":0.07,"completion_rate":17.8},"btm":{"spend":1194,"leads":0,"cpa":null,"imp":4416,"clicks":28,"ctr":0.63,"cpm":270,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"cpv3s":null,"completion_rate":null},"funnel_total":{"spend":1857,"leads":0,"cpa":null,"imp":16575,"clicks":56,"ctr":0.34,"cpm":112,"v3s":8105,"v25":5135,"v50":3792,"v75":2518,"v100":1195,"cpv3s":0.23,"completion_rate":14.7},"non_specified":{"spend":9099,"leads":0,"cpa":null,"imp":30354,"clicks":133,"ctr":0.44,"cpm":300,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"cpv3s":null,"completion_rate":null}},"pixel_health":{"spend":45978,"clicks":1138,"web_leads":0,"meta_leads":0,"status":"🔴 0 轉換","click_to_lead_rate":0.0}},"kaohsiung":{"info":{"name":"🏥 高雄初日","short":"高雄","target":5000,"is_partner":false,"lead_col":"leads_web","landing":"events.cofit.me/genesis-16369"},"all":{"kpi":{"spend":53396,"leads":6,"cpa":8899,"imp":137441,"clicks":875,"ctr":0.64,"cpm":389,"v3s":17899,"v25":8551,"v50":5788,"v75":3695,"v100":2221,"cpv3s":2.98,"completion_rate":12.4},"adsets":[{"name":"ASC","spend":3178,"leads":0,"cpa":null,"ctr":0.24,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"ASC_李醫師","spend":2925,"leads":0,"cpa":null,"ctr":0.85,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_思思醫師","spend":2872,"leads":0,"cpa":null,"ctr":0.29,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%","spend":2840,"leads":0,"cpa":null,"ctr":0.5,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_李醫師","spend":2692,"leads":0,"cpa":null,"ctr":0.53,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_范醫師","spend":2669,"leads":0,"cpa":null,"ctr":0.68,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"ASC_范醫師","spend":2567,"leads":0,"cpa":null,"ctr":0.91,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_比基尼興趣","spend":2402,"leads":0,"cpa":null,"ctr":0.38,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_身心健康","spend":2339,"leads":0,"cpa":null,"ctr":0.55,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_烘焙興趣","spend":2323,"leads":0,"cpa":null,"ctr":0.4,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_范醫師","spend":2237,"leads":1,"cpa":2237,"ctr":2.96,"aud_type":"再行銷","status":"🟢 加碼"},{"name":"NU_CRM LAL1%_劉醫師","spend":2140,"leads":0,"cpa":null,"ctr":0.57,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"RT_PV30D初日","spend":2128,"leads":2,"cpa":1064,"ctr":0.78,"aud_type":"再行銷","status":"🟢 加碼"},{"name":"ASC_劉醫師","spend":2091,"leads":0,"cpa":null,"ctr":0.54,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_李醫師","spend":2073,"leads":0,"cpa":null,"ctr":1.28,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_李醫師","spend":2019,"leads":0,"cpa":null,"ctr":1.64,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_思思醫師","spend":1972,"leads":0,"cpa":null,"ctr":1.46,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_劉醫師","spend":1891,"leads":1,"cpa":1891,"ctr":1.19,"aud_type":"再行銷","status":"🟢 加碼"},{"name":"RT_video15sec180d_高雄不指定_中層漏斗","spend":1804,"leads":2,"cpa":902,"ctr":0.6,"aud_type":"再行銷","status":"🟢 加碼"},{"name":"ASC_思思醫師","spend":1773,"leads":0,"cpa":null,"ctr":0.78,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_范醫師","spend":1634,"leads":0,"cpa":null,"ctr":2.09,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_思思醫師","spend":1499,"leads":0,"cpa":null,"ctr":0.65,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日","spend":1398,"leads":0,"cpa":null,"ctr":0.39,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_劉醫師","spend":1255,"leads":0,"cpa":null,"ctr":0.84,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_video10sec180d_高雄不指定_上層漏斗","spend":376,"leads":0,"cpa":null,"ctr":0.14,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE365D_李醫師_李醫師","spend":301,"leads":0,"cpa":null,"ctr":1.2,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":1062,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":7312,"leads":2,"cpa":3656},{"gender":"female","age":"35-44","spend":13572,"leads":2,"cpa":6786},{"gender":"female","age":"45-54","spend":12534,"leads":1,"cpa":12534},{"gender":"female","age":"55-64","spend":4195,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":1116,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":592,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":4348,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":4577,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":2743,"leads":1,"cpa":2743},{"gender":"male","age":"55-64","spend":818,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":270,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":38,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":63,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":56,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":89,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":9,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":3,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":20587,"leads":6,"cpa":3431,"cpm":536},{"type":"開發新客","spend":19596,"leads":0,"cpa":null,"cpm":265},{"type":"類似受眾","spend":13213,"leads":0,"cpa":null,"cpm":528}],"ads":[{"name":"高雄初日_劉醫師_高壓亂吃小腹凸_高雄初日粉專_單圖_品牌痛點型_251107","spend":7377,"leads":1,"cpa":7377,"ctr":0.69,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.8,"theme":"痛點型"},{"name":"高雄初日_常態單圖_思思醫師_思思自介_思思醫師","spend":5291,"leads":0,"cpa":null,"ctr":0.35,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.57,"theme":"自介型"},{"name":"高雄初日_不指定_5月開診_初日_單圖_月份型_260417","spend":5015,"leads":0,"cpa":null,"ctr":0.44,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.53,"theme":"月份型"},{"name":"高雄初日_李醫師_內臟脂肪案例_初日粉專_影片_案例型_260313","spend":4716,"leads":0,"cpa":null,"ctr":0.96,"cpv3s":2.21,"v3s":2138,"v25":722,"v50":357,"v75":245,"v100":107,"completion":5.0,"freq":1.81,"theme":"案例型"},{"name":"高雄初日_不指定_小心喝出一身脂肪肝_初日_單圖_品牌痛點型_260429","spend":3255,"leads":2,"cpa":1627,"ctr":0.43,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.47,"theme":"痛點型"},{"name":"高雄初日_不指定_高雄初日好評_高雄初日粉專_單圖_品牌通用型_250828","spend":3251,"leads":0,"cpa":null,"ctr":0.51,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.0,"theme":"品牌通用型"},{"name":"高雄初日_范醫師_不只瘦也要舒服輕盈_初日_單圖_品牌痛點型_260429","spend":2917,"leads":1,"cpa":2917,"ctr":0.71,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.16,"theme":"痛點型"},{"name":"高雄初日_不指定_好評回饋新版_高雄初日_單圖_區域型_260320","spend":2791,"leads":0,"cpa":null,"ctr":0.72,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.49,"theme":"其他"},{"name":"高雄初日_常態單圖_范醫師_醫師自介_高雄初日_250319","spend":2436,"leads":0,"cpa":null,"ctr":0.77,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.82,"theme":"自介型"},{"name":"高雄初日_范醫師_情緒性進食_高雄初日粉專_影片_知識型_250724","spend":2350,"leads":0,"cpa":null,"ctr":3.83,"cpv3s":2.93,"v3s":803,"v25":401,"v50":251,"v75":134,"v100":74,"completion":9.2,"freq":1.97,"theme":"知識型"},{"name":"高雄初日_李醫師_弱肌變天菜_初日粉專_影片_知識型_260508","spend":2041,"leads":0,"cpa":null,"ctr":0.81,"cpv3s":2.06,"v3s":992,"v25":418,"v50":203,"v75":105,"v100":49,"completion":4.9,"freq":1.36,"theme":"知識型"},{"name":"高雄初日_不指定_夏日體重卡在高點_初日_單圖_品牌痛點型_260429","spend":1933,"leads":0,"cpa":null,"ctr":0.26,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.51,"theme":"痛點型"},{"name":"高雄初日_常態單圖_思思醫師_思思天菜_高雄初日","spend":1595,"leads":0,"cpa":null,"ctr":0.67,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.71,"theme":"其他"},{"name":"高雄初日_范醫師_產後瘦身_高雄初日粉專_單圖_品牌痛點型_250830","spend":1405,"leads":0,"cpa":null,"ctr":0.56,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.58,"theme":"痛點型"},{"name":"高雄初日_李醫師_李醫師5月開診_李醫師粉專_單圖_月份型_260417","spend":1280,"leads":0,"cpa":null,"ctr":0.56,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.0,"theme":"月份型"},{"name":"高雄初日_李醫師_減重好朋友_李醫師粉專_影片_知識型_251004","spend":1090,"leads":0,"cpa":null,"ctr":1.68,"cpv3s":2.41,"v3s":452,"v25":206,"v50":141,"v75":116,"v100":78,"completion":17.3,"freq":1.76,"theme":"知識型"},{"name":"高雄初日_思思醫師_糖化血色素不等於血糖真相_高雄初日粉專_影片_知識型_250328","spend":642,"leads":0,"cpa":null,"ctr":2.19,"cpv3s":2.44,"v3s":263,"v25":122,"v50":89,"v75":66,"v100":41,"completion":15.6,"freq":1.4,"theme":"知識型"},{"name":"高雄不指定_下層漏斗_好評回饋_260312","spend":610,"leads":2,"cpa":305,"ctr":1.11,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.06,"theme":"其他"},{"name":"高雄不指定_下層漏斗_5月開診_260507","spend":597,"leads":0,"cpa":null,"ctr":0.35,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.12,"theme":"月份型"},{"name":"高雄不指定_下層漏斗_院所環境_260312","spend":596,"leads":0,"cpa":null,"ctr":0.23,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.82,"theme":"其他"},{"name":"高雄初日_思思醫師_減重三大風險_高雄初日粉專_影片_知識型_250725","spend":588,"leads":0,"cpa":null,"ctr":2.26,"cpv3s":2.26,"v3s":260,"v25":63,"v50":38,"v75":25,"v100":17,"completion":6.5,"freq":1.61,"theme":"知識型"},{"name":"高雄初日_李醫師_減重個案_高雄初日_影片_案例型_260313","spend":571,"leads":0,"cpa":null,"ctr":1.76,"cpv3s":2.65,"v3s":215,"v25":101,"v50":70,"v75":30,"v100":22,"completion":10.2,"freq":1.46,"theme":"案例型"},{"name":"高雄不指定_上層漏斗_劉醫師越軟的食物越容易胖_260312","spend":349,"leads":0,"cpa":null,"ctr":0.11,"cpv3s":0.05,"v3s":7232,"v25":3199,"v50":1821,"v75":931,"v100":755,"completion":10.4,"freq":1.01,"theme":"其他"},{"name":"高雄不指定_中層漏斗_李醫師當你有醫師好友_260312","spend":255,"leads":0,"cpa":null,"ctr":0.1,"cpv3s":0.06,"v3s":4066,"v25":2002,"v50":1575,"v75":1333,"v100":794,"completion":19.5,"freq":1.09,"theme":"其他"},{"name":"高雄初日_常態單圖_李醫師_不復胖減重_高雄初日_250123","spend":216,"leads":0,"cpa":null,"ctr":0.65,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.68,"theme":"其他"},{"name":"高雄初日_李醫師_小腹凸只是排便不順嗎_高雄初日_單圖_品牌痛點型_260328","spend":97,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.15,"theme":"痛點型"},{"name":"高雄不指定_中層漏斗_李醫師內臟脂肪案例_260312","spend":60,"leads":0,"cpa":null,"ctr":0.32,"cpv3s":0.09,"v3s":641,"v25":553,"v50":504,"v75":483,"v100":171,"completion":26.7,"freq":1.38,"theme":"案例型"},{"name":"高雄不指定_中層漏斗_李醫師減重個案_260312","spend":60,"leads":0,"cpa":null,"ctr":0.28,"cpv3s":0.1,"v3s":613,"v25":597,"v50":595,"v75":156,"v100":87,"completion":14.2,"freq":4.09,"theme":"其他"},{"name":"高雄不指定_上層漏斗_范醫師吃還是不吃_260312","spend":8,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":0.08,"v3s":103,"v25":101,"v50":100,"v75":42,"v100":8,"completion":7.8,"freq":2.66,"theme":"其他"},{"name":"高雄不指定_上層漏斗_李醫師健檢報告紅字_260312","spend":5,"leads":0,"cpa":null,"ctr":0.44,"cpv3s":0.04,"v3s":115,"v25":63,"v50":43,"v75":29,"v100":18,"completion":15.7,"freq":1.05,"theme":"其他"},{"name":"高雄不指定_下層漏斗_為什麼減重要看醫生_260312","spend":1,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":0.63,"v3s":2,"v25":0,"v50":0,"v75":0,"v100":0,"completion":0.0,"freq":1.05,"theme":"其他"},{"name":"高雄不指定_上層漏斗_李醫師減肥別做三件事_260312","spend":0,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":0.0,"v3s":4,"v25":3,"v50":1,"v75":0,"v100":0,"completion":0.0,"freq":1.0,"theme":"其他"}],"themes":[{"theme":"其他","spend":6486,"leads":2,"cpa":3243,"ctr":0.35},{"theme":"品牌通用型","spend":3251,"leads":0,"cpa":null,"ctr":0.51},{"theme":"月份型","spend":6892,"leads":0,"cpa":null,"ctr":0.45},{"theme":"案例型","spend":5347,"leads":0,"cpa":null,"ctr":0.97},{"theme":"痛點型","spend":16983,"leads":4,"cpa":4246,"ctr":0.54},{"theme":"知識型","spend":6710,"leads":0,"cpa":null,"ctr":2.1},{"theme":"自介型","spend":7727,"leads":0,"cpa":null,"ctr":0.5}]},"subcamps":{"lead_with_dr":{"name":"指定醫師","section":{"kpi":{"spend":34609,"leads":2,"cpa":17305,"imp":61638,"clicks":586,"ctr":0.95,"cpm":561,"v3s":5123,"v25":2033,"v50":1149,"v75":721,"v100":388,"cpv3s":6.76,"completion_rate":7.6},"adsets":[{"name":"ASC_李醫師","spend":2925,"leads":0,"cpa":null,"ctr":0.85,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_思思醫師","spend":2872,"leads":0,"cpa":null,"ctr":0.29,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_李醫師","spend":2692,"leads":0,"cpa":null,"ctr":0.53,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_范醫師","spend":2669,"leads":0,"cpa":null,"ctr":0.68,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"ASC_范醫師","spend":2567,"leads":0,"cpa":null,"ctr":0.91,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_范醫師","spend":2237,"leads":1,"cpa":2237,"ctr":2.96,"aud_type":"再行銷","status":"🟢 加碼"},{"name":"NU_CRM LAL1%_劉醫師","spend":2140,"leads":0,"cpa":null,"ctr":0.57,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"ASC_劉醫師","spend":2091,"leads":0,"cpa":null,"ctr":0.54,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_李醫師","spend":2073,"leads":0,"cpa":null,"ctr":1.28,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_李醫師","spend":2019,"leads":0,"cpa":null,"ctr":1.64,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_思思醫師","spend":1972,"leads":0,"cpa":null,"ctr":1.46,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_劉醫師","spend":1891,"leads":1,"cpa":1891,"ctr":1.19,"aud_type":"再行銷","status":"🟢 加碼"},{"name":"ASC_思思醫師","spend":1773,"leads":0,"cpa":null,"ctr":0.78,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_范醫師","spend":1634,"leads":0,"cpa":null,"ctr":2.09,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_思思醫師","spend":1499,"leads":0,"cpa":null,"ctr":0.65,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_劉醫師","spend":1255,"leads":0,"cpa":null,"ctr":0.84,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE365D_李醫師_李醫師","spend":301,"leads":0,"cpa":null,"ctr":1.2,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":391,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":4567,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":9164,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":8811,"leads":1,"cpa":8811},{"gender":"female","age":"55-64","spend":2688,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":588,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":234,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":2674,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":3030,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":1717,"leads":1,"cpa":1717},{"gender":"male","age":"55-64","spend":436,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":145,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":13,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":40,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":36,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":66,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":7,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":3,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":14881,"leads":2,"cpa":7441,"cpm":748},{"type":"開發新客","spend":9355,"leads":0,"cpa":null,"cpm":412},{"type":"類似受眾","spend":10373,"leads":0,"cpa":null,"cpm":544}],"ads":[{"name":"高雄初日_劉醫師_高壓亂吃小腹凸_高雄初日粉專_單圖_品牌痛點型_251107","spend":7377,"leads":1,"cpa":7377,"ctr":0.69,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.8,"theme":"痛點型"},{"name":"高雄初日_常態單圖_思思醫師_思思自介_思思醫師","spend":5291,"leads":0,"cpa":null,"ctr":0.35,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.57,"theme":"自介型"},{"name":"高雄初日_李醫師_內臟脂肪案例_初日粉專_影片_案例型_260313","spend":4716,"leads":0,"cpa":null,"ctr":0.96,"cpv3s":2.21,"v3s":2138,"v25":722,"v50":357,"v75":245,"v100":107,"completion":5.0,"freq":1.81,"theme":"案例型"},{"name":"高雄初日_范醫師_不只瘦也要舒服輕盈_初日_單圖_品牌痛點型_260429","spend":2917,"leads":1,"cpa":2917,"ctr":0.71,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.16,"theme":"痛點型"},{"name":"高雄初日_常態單圖_范醫師_醫師自介_高雄初日_250319","spend":2436,"leads":0,"cpa":null,"ctr":0.77,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.82,"theme":"自介型"},{"name":"高雄初日_范醫師_情緒性進食_高雄初日粉專_影片_知識型_250724","spend":2350,"leads":0,"cpa":null,"ctr":3.83,"cpv3s":2.93,"v3s":803,"v25":401,"v50":251,"v75":134,"v100":74,"completion":9.2,"freq":1.97,"theme":"知識型"},{"name":"高雄初日_李醫師_弱肌變天菜_初日粉專_影片_知識型_260508","spend":2041,"leads":0,"cpa":null,"ctr":0.81,"cpv3s":2.06,"v3s":992,"v25":418,"v50":203,"v75":105,"v100":49,"completion":4.9,"freq":1.36,"theme":"知識型"},{"name":"高雄初日_常態單圖_思思醫師_思思天菜_高雄初日","spend":1595,"leads":0,"cpa":null,"ctr":0.67,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.71,"theme":"其他"},{"name":"高雄初日_范醫師_產後瘦身_高雄初日粉專_單圖_品牌痛點型_250830","spend":1405,"leads":0,"cpa":null,"ctr":0.56,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.58,"theme":"痛點型"},{"name":"高雄初日_李醫師_李醫師5月開診_李醫師粉專_單圖_月份型_260417","spend":1280,"leads":0,"cpa":null,"ctr":0.56,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.0,"theme":"月份型"},{"name":"高雄初日_李醫師_減重好朋友_李醫師粉專_影片_知識型_251004","spend":1090,"leads":0,"cpa":null,"ctr":1.68,"cpv3s":2.41,"v3s":452,"v25":206,"v50":141,"v75":116,"v100":78,"completion":17.3,"freq":1.76,"theme":"知識型"},{"name":"高雄初日_思思醫師_糖化血色素不等於血糖真相_高雄初日粉專_影片_知識型_250328","spend":642,"leads":0,"cpa":null,"ctr":2.19,"cpv3s":2.44,"v3s":263,"v25":122,"v50":89,"v75":66,"v100":41,"completion":15.6,"freq":1.4,"theme":"知識型"},{"name":"高雄初日_思思醫師_減重三大風險_高雄初日粉專_影片_知識型_250725","spend":588,"leads":0,"cpa":null,"ctr":2.26,"cpv3s":2.26,"v3s":260,"v25":63,"v50":38,"v75":25,"v100":17,"completion":6.5,"freq":1.61,"theme":"知識型"},{"name":"高雄初日_李醫師_減重個案_高雄初日_影片_案例型_260313","spend":571,"leads":0,"cpa":null,"ctr":1.76,"cpv3s":2.65,"v3s":215,"v25":101,"v50":70,"v75":30,"v100":22,"completion":10.2,"freq":1.46,"theme":"案例型"},{"name":"高雄初日_常態單圖_李醫師_不復胖減重_高雄初日_250123","spend":216,"leads":0,"cpa":null,"ctr":0.65,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.68,"theme":"其他"},{"name":"高雄初日_李醫師_小腹凸只是排便不順嗎_高雄初日_單圖_品牌痛點型_260328","spend":97,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.15,"theme":"痛點型"}],"themes":[{"theme":"其他","spend":1810,"leads":0,"cpa":null,"ctr":0.66},{"theme":"月份型","spend":1280,"leads":0,"cpa":null,"ctr":0.56},{"theme":"案例型","spend":5287,"leads":0,"cpa":null,"ctr":1.04},{"theme":"痛點型","spend":11795,"leads":2,"cpa":5897,"ctr":0.68},{"theme":"知識型","spend":6710,"leads":0,"cpa":null,"ctr":2.1},{"theme":"自介型","spend":7727,"leads":0,"cpa":null,"ctr":0.5}]}},"lead_no_dr":{"name":"不指定醫師","section":{"kpi":{"spend":16245,"leads":2,"cpa":8122,"imp":50474,"clicks":237,"ctr":0.47,"cpm":322,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"cpv3s":null,"completion_rate":null},"adsets":[{"name":"NU_CRM LAL1%","spend":2840,"leads":0,"cpa":null,"ctr":0.5,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"ASC","spend":2815,"leads":0,"cpa":null,"ctr":0.42,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_比基尼興趣","spend":2402,"leads":0,"cpa":null,"ctr":0.38,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_身心健康","spend":2339,"leads":0,"cpa":null,"ctr":0.55,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_烘焙興趣","spend":2323,"leads":0,"cpa":null,"ctr":0.4,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_PV30D初日","spend":2128,"leads":2,"cpa":1064,"ctr":0.78,"aud_type":"再行銷","status":"🟢 加碼"},{"name":"RT_FPE60D初日","spend":1398,"leads":0,"cpa":null,"ctr":0.39,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":670,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":2501,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":3991,"leads":2,"cpa":1995},{"gender":"female","age":"45-54","spend":3264,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":1002,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":266,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":357,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":1468,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":1422,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":874,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":268,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":83,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":25,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":16,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":18,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":18,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":1,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":0,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":3525,"leads":2,"cpa":1763,"cpm":657},{"type":"開發新客","spend":9879,"leads":0,"cpa":null,"cpm":252},{"type":"類似受眾","spend":2840,"leads":0,"cpa":null,"cpm":477}],"ads":[{"name":"高雄初日_不指定_5月開診_初日_單圖_月份型_260417","spend":5015,"leads":0,"cpa":null,"ctr":0.44,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.53,"theme":"月份型"},{"name":"高雄初日_不指定_小心喝出一身脂肪肝_初日_單圖_品牌痛點型_260429","spend":3255,"leads":2,"cpa":1627,"ctr":0.43,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.47,"theme":"痛點型"},{"name":"高雄初日_不指定_高雄初日好評_高雄初日粉專_單圖_品牌通用型_250828","spend":3251,"leads":0,"cpa":null,"ctr":0.51,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.0,"theme":"品牌通用型"},{"name":"高雄初日_不指定_好評回饋新版_高雄初日_單圖_區域型_260320","spend":2791,"leads":0,"cpa":null,"ctr":0.72,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.49,"theme":"其他"},{"name":"高雄初日_不指定_夏日體重卡在高點_初日_單圖_品牌痛點型_260429","spend":1933,"leads":0,"cpa":null,"ctr":0.26,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.51,"theme":"痛點型"}],"themes":[{"theme":"其他","spend":2791,"leads":0,"cpa":null,"ctr":0.72},{"theme":"品牌通用型","spend":3251,"leads":0,"cpa":null,"ctr":0.51},{"theme":"月份型","spend":5015,"leads":0,"cpa":null,"ctr":0.44},{"theme":"痛點型","spend":5188,"leads":2,"cpa":2594,"ctr":0.38}]}},"funnel_btm":{"name":"漏斗-下層","section":{"kpi":{"spend":1804,"leads":2,"cpa":902,"imp":4356,"clicks":26,"ctr":0.6,"cpm":414,"v3s":2,"v25":0,"v50":0,"v75":0,"v100":0,"cpv3s":901.85,"completion_rate":0.0},"adsets":[{"name":"RT_video15sec180d_高雄不指定_中層漏斗","spend":1804,"leads":2,"cpa":902,"ctr":0.6,"aud_type":"再行銷","status":"🟢 加碼"}],"demo":[{"gender":"female","age":"18-24","spend":1,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":230,"leads":2,"cpa":115},{"gender":"female","age":"35-44","spend":405,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":398,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":198,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":47,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":0,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":205,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":121,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":130,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":49,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":6,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":7,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":2,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":5,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":0,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":1804,"leads":2,"cpa":902,"cpm":414}],"ads":[{"name":"高雄不指定_下層漏斗_好評回饋_260312","spend":610,"leads":2,"cpa":305,"ctr":1.11,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.06,"theme":"其他"},{"name":"高雄不指定_下層漏斗_5月開診_260507","spend":597,"leads":0,"cpa":null,"ctr":0.35,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.12,"theme":"月份型"},{"name":"高雄不指定_下層漏斗_院所環境_260312","spend":596,"leads":0,"cpa":null,"ctr":0.23,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.82,"theme":"其他"},{"name":"高雄不指定_下層漏斗_為什麼減重要看醫生_260312","spend":1,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":0.63,"v3s":2,"v25":0,"v50":0,"v75":0,"v100":0,"completion":0.0,"freq":1.05,"theme":"其他"}],"themes":[{"theme":"其他","spend":1207,"leads":2,"cpa":604,"ctr":0.71},{"theme":"月份型","spend":597,"leads":0,"cpa":null,"ctr":0.35}]}},"funnel_top":{"name":"漏斗-上層","section":{"kpi":{"spend":362,"leads":0,"cpa":null,"imp":12150,"clicks":14,"ctr":0.12,"cpm":30,"v3s":7454,"v25":3366,"v50":1965,"v75":1002,"v100":781,"cpv3s":0.05,"completion_rate":10.5},"adsets":[{"name":"ASC","spend":362,"leads":0,"cpa":null,"ctr":0.12,"aud_type":"開發新客","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":0,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":6,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":5,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":33,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":154,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":114,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":0,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":1,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":2,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":11,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":20,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":14,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":0,"leads":0,"cpa":null}],"audience_types":[{"type":"開發新客","spend":362,"leads":0,"cpa":null,"cpm":30}],"ads":[{"name":"高雄不指定_上層漏斗_劉醫師越軟的食物越容易胖_260312","spend":349,"leads":0,"cpa":null,"ctr":0.11,"cpv3s":0.05,"v3s":7232,"v25":3199,"v50":1821,"v75":931,"v100":755,"completion":10.4,"freq":1.01,"theme":"其他"},{"name":"高雄不指定_上層漏斗_范醫師吃還是不吃_260312","spend":8,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":0.08,"v3s":103,"v25":101,"v50":100,"v75":42,"v100":8,"completion":7.8,"freq":2.66,"theme":"其他"},{"name":"高雄不指定_上層漏斗_李醫師健檢報告紅字_260312","spend":5,"leads":0,"cpa":null,"ctr":0.44,"cpv3s":0.04,"v3s":115,"v25":63,"v50":43,"v75":29,"v100":18,"completion":15.7,"freq":1.05,"theme":"其他"},{"name":"高雄不指定_上層漏斗_李醫師減肥別做三件事_260312","spend":0,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":0.0,"v3s":4,"v25":3,"v50":1,"v75":0,"v100":0,"completion":0.0,"freq":1.0,"theme":"其他"}],"themes":[{"theme":"其他","spend":362,"leads":0,"cpa":null,"ctr":0.12}]}},"funnel_mid":{"name":"漏斗-中層","section":{"kpi":{"spend":376,"leads":0,"cpa":null,"imp":8823,"clicks":12,"ctr":0.14,"cpm":43,"v3s":5320,"v25":3152,"v50":2674,"v75":1972,"v100":1052,"cpv3s":0.07,"completion_rate":19.8},"adsets":[{"name":"RT_video10sec180d_高雄不指定_上層漏斗","spend":376,"leads":0,"cpa":null,"ctr":0.14,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":0,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":7,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":7,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":29,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":152,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":101,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":1,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":0,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":2,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":11,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":44,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":22,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":0,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":376,"leads":0,"cpa":null,"cpm":43}],"ads":[{"name":"高雄不指定_中層漏斗_李醫師當你有醫師好友_260312","spend":255,"leads":0,"cpa":null,"ctr":0.1,"cpv3s":0.06,"v3s":4066,"v25":2002,"v50":1575,"v75":1333,"v100":794,"completion":19.5,"freq":1.09,"theme":"其他"},{"name":"高雄不指定_中層漏斗_李醫師內臟脂肪案例_260312","spend":60,"leads":0,"cpa":null,"ctr":0.32,"cpv3s":0.09,"v3s":641,"v25":553,"v50":504,"v75":483,"v100":171,"completion":26.7,"freq":1.38,"theme":"案例型"},{"name":"高雄不指定_中層漏斗_李醫師減重個案_260312","spend":60,"leads":0,"cpa":null,"ctr":0.28,"cpv3s":0.1,"v3s":613,"v25":597,"v50":595,"v75":156,"v100":87,"completion":14.2,"freq":4.09,"theme":"其他"}],"themes":[{"theme":"其他","spend":316,"leads":0,"cpa":null,"ctr":0.11},{"theme":"案例型","spend":60,"leads":0,"cpa":null,"ctr":0.32}]}}},"funnel_compare":{"top":{"spend":362,"leads":0,"cpa":null,"imp":12150,"clicks":14,"ctr":0.12,"cpm":30,"v3s":7454,"v25":3366,"v50":1965,"v75":1002,"v100":781,"cpv3s":0.05,"completion_rate":10.5},"mid":{"spend":376,"leads":0,"cpa":null,"imp":8823,"clicks":12,"ctr":0.14,"cpm":43,"v3s":5320,"v25":3152,"v50":2674,"v75":1972,"v100":1052,"cpv3s":0.07,"completion_rate":19.8},"btm":{"spend":1804,"leads":2,"cpa":902,"imp":4356,"clicks":26,"ctr":0.6,"cpm":414,"v3s":2,"v25":0,"v50":0,"v75":0,"v100":0,"cpv3s":901.85,"completion_rate":0.0},"funnel_total":{"spend":2542,"leads":2,"cpa":1271,"imp":25329,"clicks":52,"ctr":0.21,"cpm":100,"v3s":12776,"v25":6518,"v50":4639,"v75":2974,"v100":1833,"cpv3s":0.2,"completion_rate":14.3},"non_specified":{"spend":16245,"leads":2,"cpa":8122,"imp":50474,"clicks":237,"ctr":0.47,"cpm":322,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"cpv3s":null,"completion_rate":null}},"pixel_health":{"spend":53396,"clicks":875,"web_leads":6,"meta_leads":0,"status":"🟢 正常","click_to_lead_rate":0.69}},"hsinchu":{"info":{"name":"🏥 新竹初日","short":"新竹","target":5000,"is_partner":false,"lead_col":"leads_web","landing":"events.cofit.me/genesis-16369"},"all":{"kpi":{"spend":23582,"leads":0,"cpa":null,"imp":67214,"clicks":511,"ctr":0.76,"cpm":351,"v3s":2882,"v25":706,"v50":462,"v75":363,"v100":228,"cpv3s":8.18,"completion_rate":7.9},"adsets":[{"name":"ASC_王醫師","spend":2105,"leads":0,"cpa":null,"ctr":0.86,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"ASC_魏醫師","spend":2080,"leads":0,"cpa":null,"ctr":1.04,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"ASC","spend":2040,"leads":0,"cpa":null,"ctr":0.67,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_魏醫師","spend":1840,"leads":0,"cpa":null,"ctr":1.0,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_王醫師","spend":1821,"leads":0,"cpa":null,"ctr":0.46,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%","spend":1790,"leads":0,"cpa":null,"ctr":0.56,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"ASC_王醫師(成長)","spend":1733,"leads":0,"cpa":null,"ctr":0.5,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"ASC_威龍醫師","spend":1592,"leads":0,"cpa":null,"ctr":1.13,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_王醫師","spend":1401,"leads":0,"cpa":null,"ctr":0.84,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_威龍醫師","spend":1320,"leads":0,"cpa":null,"ctr":0.72,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_魏醫師","spend":1108,"leads":0,"cpa":null,"ctr":0.65,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日","spend":1102,"leads":0,"cpa":null,"ctr":0.82,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_王醫師(成長)","spend":1046,"leads":0,"cpa":null,"ctr":0.32,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日","spend":673,"leads":0,"cpa":null,"ctr":0.93,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_王醫師","spend":600,"leads":0,"cpa":null,"ctr":0.99,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_威龍醫師","spend":526,"leads":0,"cpa":null,"ctr":0.89,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_魏醫師","spend":477,"leads":0,"cpa":null,"ctr":1.26,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_威龍醫師","spend":327,"leads":0,"cpa":null,"ctr":0.55,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":274,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":3524,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":7473,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":5506,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":1936,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":153,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":108,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":1045,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":1554,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":1461,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":222,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":209,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":3,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":23,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":40,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":34,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":11,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":6,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":7261,"leads":0,"cpa":null,"cpm":660},{"type":"開發新客","spend":9550,"leads":0,"cpa":null,"cpm":272},{"type":"類似受眾","spend":6771,"leads":0,"cpa":null,"cpm":320}],"ads":[{"name":"新竹初日_王醫師_新竹不只是減重診所_新竹初日粉專_影片_品牌通用型_260226","spend":3861,"leads":0,"cpa":null,"ctr":1.18,"cpv3s":4.86,"v3s":795,"v25":188,"v50":145,"v75":111,"v100":72,"completion":9.1,"freq":1.74,"theme":"品牌通用型"},{"name":"新竹初日_常態單圖_魏醫師_新竹初日開診_魏醫師_240920","spend":3447,"leads":0,"cpa":null,"ctr":0.95,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.52,"theme":"月份型"},{"name":"新竹初日_不指定_吃不多卻瘦不下來_初日_單圖_品牌痛點型_260429","spend":2918,"leads":0,"cpa":null,"ctr":0.69,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.95,"theme":"痛點型"},{"name":"新竹初日_威龍醫師_四大關鍵心法_新竹初日粉專_影片_知識型_250711","spend":2060,"leads":0,"cpa":null,"ctr":1.31,"cpv3s":3.33,"v3s":619,"v25":141,"v50":75,"v75":61,"v100":41,"completion":6.6,"freq":1.86,"theme":"知識型"},{"name":"新竹初日_威龍醫師_睡不好很可能是變胖的徵兆_威龍醫師粉專_影片_知識型_260409","spend":1705,"leads":0,"cpa":null,"ctr":0.66,"cpv3s":2.91,"v3s":585,"v25":107,"v50":60,"v75":39,"v100":24,"completion":4.1,"freq":1.77,"theme":"知識型"},{"name":"新竹初日_常態單圖_王律婷兒童生長門診_初日_250217","spend":1537,"leads":0,"cpa":null,"ctr":0.55,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.27,"theme":"其他"},{"name":"新竹初日_不指定_5月開診_初日_單圖_月份型_260417","spend":1213,"leads":0,"cpa":null,"ctr":0.43,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.96,"theme":"月份型"},{"name":"新竹初日_王醫師_肥胖會壓縮長高時間_初日_單圖_品牌痛點型_260429","spend":1104,"leads":0,"cpa":null,"ctr":0.29,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.96,"theme":"痛點型"},{"name":"新竹初日_王醫師_不只瘦也要舒服輕盈_初日_單圖_品牌痛點型_260429","spend":777,"leads":0,"cpa":null,"ctr":0.3,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.24,"theme":"痛點型"},{"name":"新竹初日_王醫師_5月開診_王醫師粉專_單圖_月份型_260512","spend":760,"leads":0,"cpa":null,"ctr":0.49,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.29,"theme":"月份型"},{"name":"新竹初日_不指定_新竹好評回饋_新竹初日粉專_單圖_區域型_251010","spend":749,"leads":0,"cpa":null,"ctr":0.48,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.52,"theme":"其他"},{"name":"新竹初日_不指定_肚子瘦不下來_初日粉專_影片_知識型_260418","spend":665,"leads":0,"cpa":null,"ctr":1.63,"cpv3s":2.23,"v3s":299,"v25":111,"v50":81,"v75":74,"v100":40,"completion":13.4,"freq":1.15,"theme":"知識型"},{"name":"新竹初日_魏醫師_慢性發炎是什麼_初日_影片_知識型_260429","spend":542,"leads":0,"cpa":null,"ctr":1.51,"cpv3s":2.15,"v3s":252,"v25":66,"v50":40,"v75":36,"v100":23,"completion":9.1,"freq":1.18,"theme":"知識型"},{"name":"新竹初日_魏醫師_肥神藥GLP-1真有那麼神_初日粉專_影片_知識型_251107","spend":533,"leads":0,"cpa":null,"ctr":1.78,"cpv3s":3.89,"v3s":137,"v25":39,"v50":28,"v75":23,"v100":18,"completion":13.1,"freq":1.44,"theme":"知識型"},{"name":"新竹初日_王醫師_肚子比老公大_新竹初日粉專_單圖_品牌痛點型_260328","spend":530,"leads":0,"cpa":null,"ctr":0.34,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.56,"theme":"痛點型"},{"name":"新竹初日_常態多圖_魏醫師減重心得_魏醫師_240919","spend":354,"leads":0,"cpa":null,"ctr":0.56,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.79,"theme":"其他"},{"name":"新竹初日_魏醫師_BMI19也脂肪肝_新竹初日粉專_影片_知識型_250620","spend":328,"leads":0,"cpa":null,"ctr":0.94,"cpv3s":3.42,"v3s":96,"v25":33,"v50":21,"v75":11,"v100":5,"completion":5.2,"freq":1.28,"theme":"知識型"},{"name":"新竹初日_常態單圖_魏醫師_過勞肥救星_新竹初日_250123","spend":168,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.38,"theme":"其他"},{"name":"新竹初日_常態影片_王律婷_身高預測_王律婷_250401","spend":138,"leads":0,"cpa":null,"ctr":1.16,"cpv3s":1.4,"v3s":99,"v25":21,"v50":12,"v75":8,"v100":5,"completion":5.1,"freq":1.31,"theme":"其他"},{"name":"新竹初日_魏醫師_魏醫師5月開診_魏醫師粉專_單圖_月份型_260417","spend":133,"leads":0,"cpa":null,"ctr":0.33,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.59,"theme":"月份型"},{"name":"新竹初日_不指定_夏日體重卡在高點_初日_單圖_品牌痛點型_260429","spend":35,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.12,"theme":"痛點型"},{"name":"新竹初日_不指定_小心喝出一身脂肪肝_初日_單圖_品牌痛點型_260429","spend":23,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.03,"theme":"痛點型"}],"themes":[{"theme":"其他","spend":2947,"leads":0,"cpa":null,"ctr":0.54},{"theme":"品牌通用型","spend":3861,"leads":0,"cpa":null,"ctr":1.18},{"theme":"月份型","spend":5554,"leads":0,"cpa":null,"ctr":0.78},{"theme":"痛點型","spend":5387,"leads":0,"cpa":null,"ctr":0.47},{"theme":"知識型","spend":5833,"leads":0,"cpa":null,"ctr":1.16}]},"subcamps":{"lead_with_dr":{"name":"指定醫師","section":{"kpi":{"spend":17977,"leads":0,"cpa":null,"imp":51225,"clicks":405,"ctr":0.79,"cpm":351,"v3s":2583,"v25":595,"v50":381,"v75":289,"v100":188,"cpv3s":6.96,"completion_rate":7.3},"adsets":[{"name":"ASC_王醫師","spend":2105,"leads":0,"cpa":null,"ctr":0.86,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"ASC_魏醫師","spend":2080,"leads":0,"cpa":null,"ctr":1.04,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_魏醫師","spend":1840,"leads":0,"cpa":null,"ctr":1.0,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_王醫師","spend":1821,"leads":0,"cpa":null,"ctr":0.46,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"ASC_王醫師(成長)","spend":1733,"leads":0,"cpa":null,"ctr":0.5,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"ASC_威龍醫師","spend":1592,"leads":0,"cpa":null,"ctr":1.13,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_王醫師","spend":1401,"leads":0,"cpa":null,"ctr":0.84,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%_威龍醫師","spend":1320,"leads":0,"cpa":null,"ctr":0.72,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_魏醫師","spend":1108,"leads":0,"cpa":null,"ctr":0.65,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_王醫師(成長)","spend":1046,"leads":0,"cpa":null,"ctr":0.32,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_王醫師","spend":600,"leads":0,"cpa":null,"ctr":0.99,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日_威龍醫師","spend":526,"leads":0,"cpa":null,"ctr":0.89,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_魏醫師","spend":477,"leads":0,"cpa":null,"ctr":1.26,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日_威龍醫師","spend":327,"leads":0,"cpa":null,"ctr":0.55,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":220,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":2719,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":5792,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":4093,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":1385,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":118,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":85,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":792,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":1205,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":1164,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":161,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":149,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":2,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":21,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":33,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":25,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":9,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":6,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":5486,"leads":0,"cpa":null,"cpm":650},{"type":"開發新客","spend":7510,"leads":0,"cpa":null,"cpm":275},{"type":"類似受眾","spend":4981,"leads":0,"cpa":null,"cpm":323}],"ads":[{"name":"新竹初日_王醫師_新竹不只是減重診所_新竹初日粉專_影片_品牌通用型_260226","spend":3861,"leads":0,"cpa":null,"ctr":1.18,"cpv3s":4.86,"v3s":795,"v25":188,"v50":145,"v75":111,"v100":72,"completion":9.1,"freq":1.74,"theme":"品牌通用型"},{"name":"新竹初日_常態單圖_魏醫師_新竹初日開診_魏醫師_240920","spend":3447,"leads":0,"cpa":null,"ctr":0.95,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.52,"theme":"月份型"},{"name":"新竹初日_威龍醫師_四大關鍵心法_新竹初日粉專_影片_知識型_250711","spend":2060,"leads":0,"cpa":null,"ctr":1.31,"cpv3s":3.33,"v3s":619,"v25":141,"v50":75,"v75":61,"v100":41,"completion":6.6,"freq":1.86,"theme":"知識型"},{"name":"新竹初日_威龍醫師_睡不好很可能是變胖的徵兆_威龍醫師粉專_影片_知識型_260409","spend":1705,"leads":0,"cpa":null,"ctr":0.66,"cpv3s":2.91,"v3s":585,"v25":107,"v50":60,"v75":39,"v100":24,"completion":4.1,"freq":1.77,"theme":"知識型"},{"name":"新竹初日_常態單圖_王律婷兒童生長門診_初日_250217","spend":1537,"leads":0,"cpa":null,"ctr":0.55,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":2.27,"theme":"其他"},{"name":"新竹初日_王醫師_肥胖會壓縮長高時間_初日_單圖_品牌痛點型_260429","spend":1104,"leads":0,"cpa":null,"ctr":0.29,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.96,"theme":"痛點型"},{"name":"新竹初日_王醫師_不只瘦也要舒服輕盈_初日_單圖_品牌痛點型_260429","spend":777,"leads":0,"cpa":null,"ctr":0.3,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.24,"theme":"痛點型"},{"name":"新竹初日_王醫師_5月開診_王醫師粉專_單圖_月份型_260512","spend":760,"leads":0,"cpa":null,"ctr":0.49,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.29,"theme":"月份型"},{"name":"新竹初日_魏醫師_慢性發炎是什麼_初日_影片_知識型_260429","spend":542,"leads":0,"cpa":null,"ctr":1.51,"cpv3s":2.15,"v3s":252,"v25":66,"v50":40,"v75":36,"v100":23,"completion":9.1,"freq":1.18,"theme":"知識型"},{"name":"新竹初日_魏醫師_肥神藥GLP-1真有那麼神_初日粉專_影片_知識型_251107","spend":533,"leads":0,"cpa":null,"ctr":1.78,"cpv3s":3.89,"v3s":137,"v25":39,"v50":28,"v75":23,"v100":18,"completion":13.1,"freq":1.44,"theme":"知識型"},{"name":"新竹初日_王醫師_肚子比老公大_新竹初日粉專_單圖_品牌痛點型_260328","spend":530,"leads":0,"cpa":null,"ctr":0.34,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.56,"theme":"痛點型"},{"name":"新竹初日_常態多圖_魏醫師減重心得_魏醫師_240919","spend":354,"leads":0,"cpa":null,"ctr":0.56,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.79,"theme":"其他"},{"name":"新竹初日_魏醫師_BMI19也脂肪肝_新竹初日粉專_影片_知識型_250620","spend":328,"leads":0,"cpa":null,"ctr":0.94,"cpv3s":3.42,"v3s":96,"v25":33,"v50":21,"v75":11,"v100":5,"completion":5.2,"freq":1.28,"theme":"知識型"},{"name":"新竹初日_常態單圖_魏醫師_過勞肥救星_新竹初日_250123","spend":168,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.38,"theme":"其他"},{"name":"新竹初日_常態影片_王律婷_身高預測_王律婷_250401","spend":138,"leads":0,"cpa":null,"ctr":1.16,"cpv3s":1.4,"v3s":99,"v25":21,"v50":12,"v75":8,"v100":5,"completion":5.1,"freq":1.31,"theme":"其他"},{"name":"新竹初日_魏醫師_魏醫師5月開診_魏醫師粉專_單圖_月份型_260417","spend":133,"leads":0,"cpa":null,"ctr":0.33,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.59,"theme":"月份型"}],"themes":[{"theme":"其他","spend":2197,"leads":0,"cpa":null,"ctr":0.56},{"theme":"品牌通用型","spend":3861,"leads":0,"cpa":null,"ctr":1.18},{"theme":"月份型","spend":4340,"leads":0,"cpa":null,"ctr":0.85},{"theme":"痛點型","spend":2410,"leads":0,"cpa":null,"ctr":0.3},{"theme":"知識型","spend":5168,"leads":0,"cpa":null,"ctr":1.09}]}},"lead_no_dr":{"name":"不指定醫師","section":{"kpi":{"spend":5605,"leads":0,"cpa":null,"imp":15989,"clicks":106,"ctr":0.66,"cpm":351,"v3s":299,"v25":111,"v50":81,"v75":74,"v100":40,"cpv3s":18.75,"completion_rate":13.4},"adsets":[{"name":"ASC","spend":2040,"leads":0,"cpa":null,"ctr":0.67,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_CRM LAL1%","spend":1790,"leads":0,"cpa":null,"ctr":0.56,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"RT_FPE60D初日","spend":1102,"leads":0,"cpa":null,"ctr":0.82,"aud_type":"再行銷","status":"⚪ 觀察期"},{"name":"RT_PV30D初日","spend":673,"leads":0,"cpa":null,"ctr":0.93,"aud_type":"再行銷","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":54,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":806,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":1681,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":1414,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":550,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":35,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":23,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":253,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":350,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":297,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":61,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":59,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":1,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":2,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":7,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":10,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":2,"leads":0,"cpa":null},{"gender":"unknown","age":"65+","spend":1,"leads":0,"cpa":null}],"audience_types":[{"type":"再行銷","spend":1775,"leads":0,"cpa":null,"cpm":693},{"type":"開發新客","spend":2040,"leads":0,"cpa":null,"cpm":264},{"type":"類似受眾","spend":1790,"leads":0,"cpa":null,"cpm":314}],"ads":[{"name":"新竹初日_不指定_吃不多卻瘦不下來_初日_單圖_品牌痛點型_260429","spend":2918,"leads":0,"cpa":null,"ctr":0.69,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.95,"theme":"痛點型"},{"name":"新竹初日_不指定_5月開診_初日_單圖_月份型_260417","spend":1213,"leads":0,"cpa":null,"ctr":0.43,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.96,"theme":"月份型"},{"name":"新竹初日_不指定_新竹好評回饋_新竹初日粉專_單圖_區域型_251010","spend":749,"leads":0,"cpa":null,"ctr":0.48,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.52,"theme":"其他"},{"name":"新竹初日_不指定_肚子瘦不下來_初日粉專_影片_知識型_260418","spend":665,"leads":0,"cpa":null,"ctr":1.63,"cpv3s":2.23,"v3s":299,"v25":111,"v50":81,"v75":74,"v100":40,"completion":13.4,"freq":1.15,"theme":"知識型"},{"name":"新竹初日_不指定_夏日體重卡在高點_初日_單圖_品牌痛點型_260429","spend":35,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.12,"theme":"痛點型"},{"name":"新竹初日_不指定_小心喝出一身脂肪肝_初日_單圖_品牌痛點型_260429","spend":23,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.03,"theme":"痛點型"}],"themes":[{"theme":"其他","spend":749,"leads":0,"cpa":null,"ctr":0.48},{"theme":"月份型","spend":1213,"leads":0,"cpa":null,"ctr":0.43},{"theme":"痛點型","spend":2977,"leads":0,"cpa":null,"ctr":0.66},{"theme":"知識型","spend":665,"leads":0,"cpa":null,"ctr":1.63}]}}},"funnel_compare":null,"pixel_health":{"spend":23582,"clicks":511,"web_leads":0,"meta_leads":0,"status":"🔴 0 轉換","click_to_lead_rate":0.0}},"beauty":{"info":{"name":"🏥 佳醫美人 (台北仁愛)","short":"佳醫美人","target":5000,"is_partner":true,"lead_col":"auto","landing":"events.cofit.me/beautycofit-38542"},"all":{"kpi":{"spend":6021,"leads":2,"cpa":3010,"imp":9167,"clicks":104,"ctr":1.13,"cpm":657,"v3s":419,"v25":187,"v50":105,"v75":57,"v100":34,"cpv3s":14.37,"completion_rate":8.1},"adsets":[{"name":"NU_F_美容x健康相關","spend":1099,"leads":0,"cpa":null,"ctr":0.79,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_自信相關","spend":948,"leads":0,"cpa":null,"ctr":1.0,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_專櫃保養品興趣","spend":742,"leads":1,"cpa":742,"ctr":1.31,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_專櫃品牌x健康相關","spend":661,"leads":0,"cpa":null,"ctr":0.64,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_類似廣告受眾 (1%) - LEAD名單90D_佳醫美人","spend":483,"leads":0,"cpa":null,"ctr":4.44,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"NU_F_個人護理","spend":382,"leads":0,"cpa":null,"ctr":0.41,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_台北大安區+減肥興趣","spend":305,"leads":0,"cpa":null,"ctr":0.74,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_身心健康相關","spend":288,"leads":0,"cpa":null,"ctr":2.53,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_55-64","spend":281,"leads":1,"cpa":281,"ctr":3.38,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_高熱量食物","spend":256,"leads":0,"cpa":null,"ctr":2.09,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_台北大安區+自信相關","spend":204,"leads":0,"cpa":null,"ctr":1.83,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_台北大安區+夜生活興趣","spend":186,"leads":0,"cpa":null,"ctr":0.0,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_台北大安區+專櫃興趣","spend":185,"leads":0,"cpa":null,"ctr":1.15,"aud_type":"開發新客","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":320,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":914,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":1442,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":1500,"leads":1,"cpa":1500},{"gender":"female","age":"55-64","spend":909,"leads":1,"cpa":909},{"gender":"female","age":"65+","spend":181,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":33,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":178,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":178,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":156,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":92,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":63,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":1,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":9,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":25,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":12,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":7,"leads":0,"cpa":null}],"audience_types":[{"type":"開發新客","spend":5538,"leads":2,"cpa":2769,"cpm":613},{"type":"類似受眾","spend":483,"leads":0,"cpa":null,"cpm":3579}],"ads":[{"name":"佳醫美人_診間開箱影片_品牌痛點型_260417","spend":2012,"leads":2,"cpa":1006,"ctr":1.78,"cpv3s":9.45,"v3s":213,"v25":69,"v50":34,"v75":24,"v100":11,"completion":5.2,"freq":1.15,"theme":"痛點型"},{"name":"佳醫美人_夏日女神_品牌痛點型_260313","spend":1323,"leads":0,"cpa":null,"ctr":1.04,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.22,"theme":"痛點型"},{"name":"環境介紹_品牌通用型_260429","spend":1030,"leads":0,"cpa":null,"ctr":0.81,"cpv3s":64.36,"v3s":16,"v25":16,"v50":12,"v75":10,"v100":7,"completion":43.8,"freq":1.42,"theme":"品牌通用型"},{"name":"5月門診開放預約_月份型_cofit粉專_260423","spend":942,"leads":0,"cpa":null,"ctr":0.65,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.24,"theme":"月份型"},{"name":"一站式體態升級管理_品牌痛點型_佳醫粉專_260429","spend":254,"leads":0,"cpa":null,"ctr":1.09,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.07,"theme":"痛點型"},{"name":"診間開箱影片_品牌痛點型_佳醫粉專_260429","spend":248,"leads":0,"cpa":null,"ctr":3.26,"cpv3s":1.41,"v3s":175,"v25":92,"v50":52,"v75":20,"v100":13,"completion":7.4,"freq":1.21,"theme":"痛點型"},{"name":"一站式體態升級管理_品牌痛點型_cofit粉專_260402","spend":61,"leads":0,"cpa":null,"ctr":1.11,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.12,"theme":"痛點型"},{"name":"診間開箱影片_品牌痛點型_cofit粉專_260417","spend":61,"leads":0,"cpa":null,"ctr":1.37,"cpv3s":4.07,"v3s":15,"v25":10,"v50":7,"v75":3,"v100":3,"completion":20.0,"freq":1.2,"theme":"痛點型"},{"name":"真正無修復期的減重_品牌痛點型_260313","spend":56,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.06,"theme":"痛點型"},{"name":"內外科學控糖體雕_品牌痛點型_cofit粉專_260402","spend":35,"leads":0,"cpa":null,"ctr":0.61,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.06,"theme":"痛點型"}],"themes":[{"theme":"品牌通用型","spend":1030,"leads":0,"cpa":null,"ctr":0.81},{"theme":"月份型","spend":942,"leads":0,"cpa":null,"ctr":0.65},{"theme":"痛點型","spend":4049,"leads":2,"cpa":2025,"ctr":1.54}]},"subcamps":{"lead":{"name":"潛在顧客","section":{"kpi":{"spend":2686,"leads":0,"cpa":null,"imp":6950,"clicks":73,"ctr":1.05,"cpm":386,"v3s":206,"v25":118,"v50":71,"v75":33,"v100":23,"cpv3s":13.04,"completion_rate":11.2},"adsets":[{"name":"NU_F_美容x健康相關","spend":1099,"leads":0,"cpa":null,"ctr":0.79,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_專櫃品牌x健康相關","spend":661,"leads":0,"cpa":null,"ctr":0.64,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_個人護理","spend":382,"leads":0,"cpa":null,"ctr":0.41,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_身心健康相關","spend":288,"leads":0,"cpa":null,"ctr":2.53,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_高熱量食物","spend":256,"leads":0,"cpa":null,"ctr":2.09,"aud_type":"開發新客","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":44,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":385,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":809,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":730,"leads":0,"cpa":null},{"gender":"female","age":"55-64","spend":294,"leads":0,"cpa":null},{"gender":"female","age":"65+","spend":28,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":111,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":72,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":113,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":47,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":33,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":0,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":11,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":7,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":3,"leads":0,"cpa":null}],"audience_types":[{"type":"開發新客","spend":2686,"leads":0,"cpa":null,"cpm":386}],"ads":[{"name":"環境介紹_品牌通用型_260429","spend":1030,"leads":0,"cpa":null,"ctr":0.81,"cpv3s":64.36,"v3s":16,"v25":16,"v50":12,"v75":10,"v100":7,"completion":43.8,"freq":1.42,"theme":"品牌通用型"},{"name":"5月門診開放預約_月份型_cofit粉專_260423","spend":942,"leads":0,"cpa":null,"ctr":0.65,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.24,"theme":"月份型"},{"name":"一站式體態升級管理_品牌痛點型_佳醫粉專_260429","spend":254,"leads":0,"cpa":null,"ctr":1.09,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.07,"theme":"痛點型"},{"name":"診間開箱影片_品牌痛點型_佳醫粉專_260429","spend":248,"leads":0,"cpa":null,"ctr":3.26,"cpv3s":1.41,"v3s":175,"v25":92,"v50":52,"v75":20,"v100":13,"completion":7.4,"freq":1.21,"theme":"痛點型"},{"name":"一站式體態升級管理_品牌痛點型_cofit粉專_260402","spend":61,"leads":0,"cpa":null,"ctr":1.11,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.12,"theme":"痛點型"},{"name":"診間開箱影片_品牌痛點型_cofit粉專_260417","spend":61,"leads":0,"cpa":null,"ctr":1.37,"cpv3s":4.07,"v3s":15,"v25":10,"v50":7,"v75":3,"v100":3,"completion":20.0,"freq":1.2,"theme":"痛點型"},{"name":"真正無修復期的減重_品牌痛點型_260313","spend":56,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.06,"theme":"痛點型"},{"name":"內外科學控糖體雕_品牌痛點型_cofit粉專_260402","spend":35,"leads":0,"cpa":null,"ctr":0.61,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.06,"theme":"痛點型"}],"themes":[{"theme":"品牌通用型","spend":1030,"leads":0,"cpa":null,"ctr":0.81},{"theme":"月份型","spend":942,"leads":0,"cpa":null,"ctr":0.65},{"theme":"痛點型","spend":714,"leads":0,"cpa":null,"ctr":1.66}]}},"leadform":{"name":"名單型廣告","section":{"kpi":{"spend":3335,"leads":2,"cpa":1668,"imp":2217,"clicks":31,"ctr":1.4,"cpm":1504,"v3s":213,"v25":69,"v50":34,"v75":24,"v100":11,"cpv3s":15.66,"completion_rate":5.2},"adsets":[{"name":"NU_F_自信相關","spend":948,"leads":0,"cpa":null,"ctr":1.0,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_專櫃保養品興趣","spend":742,"leads":1,"cpa":742,"ctr":1.31,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_類似廣告受眾 (1%) - LEAD名單90D_佳醫美人","spend":483,"leads":0,"cpa":null,"ctr":4.44,"aud_type":"類似受眾","status":"⚪ 觀察期"},{"name":"NU_F_台北大安區+減肥興趣","spend":305,"leads":0,"cpa":null,"ctr":0.74,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_55-64","spend":281,"leads":1,"cpa":281,"ctr":3.38,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_台北大安區+自信相關","spend":204,"leads":0,"cpa":null,"ctr":1.83,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_台北大安區+夜生活興趣","spend":186,"leads":0,"cpa":null,"ctr":0.0,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_台北大安區+專櫃興趣","spend":185,"leads":0,"cpa":null,"ctr":1.15,"aud_type":"開發新客","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":276,"leads":0,"cpa":null},{"gender":"female","age":"25-34","spend":530,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":633,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":770,"leads":1,"cpa":770},{"gender":"female","age":"55-64","spend":615,"leads":1,"cpa":615},{"gender":"female","age":"65+","spend":154,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":33,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":67,"leads":0,"cpa":null},{"gender":"male","age":"35-44","spend":106,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":43,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":46,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":30,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":1,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":9,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":14,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":4,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":4,"leads":0,"cpa":null}],"audience_types":[{"type":"開發新客","spend":2852,"leads":2,"cpa":1426,"cpm":1370},{"type":"類似受眾","spend":483,"leads":0,"cpa":null,"cpm":3579}],"ads":[{"name":"佳醫美人_診間開箱影片_品牌痛點型_260417","spend":2012,"leads":2,"cpa":1006,"ctr":1.78,"cpv3s":9.45,"v3s":213,"v25":69,"v50":34,"v75":24,"v100":11,"completion":5.2,"freq":1.15,"theme":"痛點型"},{"name":"佳醫美人_夏日女神_品牌痛點型_260313","spend":1323,"leads":0,"cpa":null,"ctr":1.04,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.22,"theme":"痛點型"}],"themes":[{"theme":"痛點型","spend":3335,"leads":2,"cpa":1668,"ctr":1.4}]}}},"funnel_compare":null,"pixel_health":{"spend":6021,"clicks":104,"web_leads":0,"meta_leads":2,"status":"🔴 0 轉換","click_to_lead_rate":0.0}},"broadriver":{"info":{"name":"🏥 廣川","short":"廣川","target":5000,"is_partner":true,"lead_col":"auto","landing":"events.cofit.me/broadriver-37772"},"all":{"kpi":{"spend":7107,"leads":7,"cpa":1015,"imp":11118,"clicks":133,"ctr":1.2,"cpm":639,"v3s":704,"v25":228,"v50":114,"v75":64,"v100":38,"cpv3s":10.1,"completion_rate":5.4},"adsets":[{"name":"NU_F_精品+健康保健相關","spend":2293,"leads":0,"cpa":null,"ctr":1.17,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_烘焙興趣+健康","spend":1499,"leads":2,"cpa":749,"ctr":2.33,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_自信相關","spend":910,"leads":4,"cpa":228,"ctr":1.99,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_中和土城板橋+演唱會相關","spend":573,"leads":1,"cpa":573,"ctr":1.09,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_瑜珈相關","spend":544,"leads":0,"cpa":null,"ctr":0.8,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_精品+健康相關","spend":525,"leads":0,"cpa":null,"ctr":0.3,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_中和土城+高熱量飲食","spend":343,"leads":0,"cpa":null,"ctr":1.26,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_中和土城x高熱量飲食","spend":214,"leads":0,"cpa":null,"ctr":0.13,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_中和土城板橋x演唱會","spend":206,"leads":0,"cpa":null,"ctr":1.21,"aud_type":"開發新客","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":97,"leads":1,"cpa":97},{"gender":"female","age":"25-34","spend":1475,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":2789,"leads":3,"cpa":930},{"gender":"female","age":"45-54","spend":1530,"leads":1,"cpa":1530},{"gender":"female","age":"55-64","spend":520,"leads":1,"cpa":520},{"gender":"female","age":"65+","spend":80,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":37,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":154,"leads":1,"cpa":154},{"gender":"male","age":"35-44","spend":216,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":137,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":48,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":7,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":1,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":1,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":11,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":4,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":0,"leads":0,"cpa":null}],"audience_types":[{"type":"開發新客","spend":7107,"leads":7,"cpa":1015,"cpm":639}],"ads":[{"name":"廣川_省時無痛減肥_單圖_品牌痛點型_260402","spend":3027,"leads":5,"cpa":605,"ctr":0.97,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.18,"theme":"痛點型"},{"name":"廣川_變美不用跑台北_單圖_品牌痛點型_260109","spend":1472,"leads":2,"cpa":736,"ctr":2.38,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.12,"theme":"痛點型"},{"name":"廣川_潛在顧客_5月開診_單圖_月份型_260423","spend":1293,"leads":0,"cpa":null,"ctr":0.39,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.17,"theme":"月份型"},{"name":"廣川_潛在顧客_診間開箱影片_影片_品牌通用型_260417","spend":1090,"leads":0,"cpa":null,"ctr":3.04,"cpv3s":1.61,"v3s":679,"v25":219,"v50":110,"v75":62,"v100":37,"completion":5.4,"freq":1.11,"theme":"品牌通用型"},{"name":"廣川_鄧醫師_鄧醫師泡芙人_影片_知識型_260410","spend":61,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":7.64,"v3s":8,"v25":3,"v50":2,"v75":2,"v100":1,"completion":12.5,"freq":1.0,"theme":"知識型"},{"name":"廣川_診間開箱影片_影片_品牌通用型_260417","spend":53,"leads":0,"cpa":null,"ctr":2.78,"cpv3s":5.29,"v3s":10,"v25":3,"v50":2,"v75":0,"v100":0,"completion":0.0,"freq":1.08,"theme":"品牌通用型"},{"name":"廣川_名單_精品自信體態_單圖_品牌通用型_260508","spend":52,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.01,"theme":"品牌通用型"},{"name":"廣川_鄧醫師_鄧醫師減重案例_影片_知識型_260410","spend":45,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":6.44,"v3s":7,"v25":3,"v50":0,"v75":0,"v100":0,"completion":0.0,"freq":1.0,"theme":"案例型"},{"name":"廣川_產後重塑自信線條_單圖_品牌痛點型_260402","spend":15,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.04,"theme":"痛點型"}],"themes":[{"theme":"品牌通用型","spend":1194,"leads":0,"cpa":null,"ctr":2.92},{"theme":"月份型","spend":1293,"leads":0,"cpa":null,"ctr":0.39},{"theme":"案例型","spend":45,"leads":0,"cpa":null,"ctr":0.0},{"theme":"痛點型","spend":4514,"leads":7,"cpa":645,"ctr":1.28},{"theme":"知識型","spend":61,"leads":0,"cpa":null,"ctr":0.0}]},"subcamps":{"lead":{"name":"潛在顧客","section":{"kpi":{"spend":2713,"leads":0,"cpa":null,"imp":7309,"clicks":78,"ctr":1.07,"cpm":371,"v3s":679,"v25":219,"v50":110,"v75":62,"v100":37,"cpv3s":4.0,"completion_rate":5.4},"adsets":[{"name":"NU_F_精品+健康保健相關","spend":2293,"leads":0,"cpa":null,"ctr":1.17,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_中和土城x高熱量飲食","spend":214,"leads":0,"cpa":null,"ctr":0.13,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_中和土城板橋x演唱會","spend":206,"leads":0,"cpa":null,"ctr":1.21,"aud_type":"開發新客","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"25-34","spend":663,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":1269,"leads":0,"cpa":null},{"gender":"female","age":"45-54","spend":781,"leads":0,"cpa":null}],"audience_types":[{"type":"開發新客","spend":2713,"leads":0,"cpa":null,"cpm":371}],"ads":[{"name":"廣川_潛在顧客_5月開診_單圖_月份型_260423","spend":1293,"leads":0,"cpa":null,"ctr":0.39,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.17,"theme":"月份型"},{"name":"廣川_潛在顧客_診間開箱影片_影片_品牌通用型_260417","spend":1090,"leads":0,"cpa":null,"ctr":3.04,"cpv3s":1.61,"v3s":679,"v25":219,"v50":110,"v75":62,"v100":37,"completion":5.4,"freq":1.11,"theme":"品牌通用型"},{"name":"廣川_省時無痛減肥_單圖_品牌痛點型_260402","spend":330,"leads":0,"cpa":null,"ctr":0.67,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.06,"theme":"痛點型"}],"themes":[{"theme":"品牌通用型","spend":1090,"leads":0,"cpa":null,"ctr":3.04},{"theme":"月份型","spend":1293,"leads":0,"cpa":null,"ctr":0.39},{"theme":"痛點型","spend":330,"leads":0,"cpa":null,"ctr":0.67}]}},"leadform":{"name":"名單型廣告","section":{"kpi":{"spend":4394,"leads":7,"cpa":628,"imp":3809,"clicks":55,"ctr":1.44,"cpm":1154,"v3s":25,"v25":9,"v50":4,"v75":2,"v100":1,"cpv3s":175.77,"completion_rate":4.0},"adsets":[{"name":"NU_F_烘焙興趣+健康","spend":1499,"leads":2,"cpa":749,"ctr":2.33,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_自信相關","spend":910,"leads":4,"cpa":228,"ctr":1.99,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_中和土城板橋+演唱會相關","spend":573,"leads":1,"cpa":573,"ctr":1.09,"aud_type":"開發新客","status":"🟢 加碼"},{"name":"NU_F_瑜珈相關","spend":544,"leads":0,"cpa":null,"ctr":0.8,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_精品+健康相關","spend":525,"leads":0,"cpa":null,"ctr":0.3,"aud_type":"開發新客","status":"⚪ 觀察期"},{"name":"NU_F_中和土城+高熱量飲食","spend":343,"leads":0,"cpa":null,"ctr":1.26,"aud_type":"開發新客","status":"⚪ 觀察期"}],"demo":[{"gender":"female","age":"18-24","spend":97,"leads":1,"cpa":97},{"gender":"female","age":"25-34","spend":812,"leads":0,"cpa":null},{"gender":"female","age":"35-44","spend":1519,"leads":3,"cpa":506},{"gender":"female","age":"45-54","spend":750,"leads":1,"cpa":750},{"gender":"female","age":"55-64","spend":520,"leads":1,"cpa":520},{"gender":"female","age":"65+","spend":80,"leads":0,"cpa":null},{"gender":"male","age":"18-24","spend":37,"leads":0,"cpa":null},{"gender":"male","age":"25-34","spend":154,"leads":1,"cpa":154},{"gender":"male","age":"35-44","spend":216,"leads":0,"cpa":null},{"gender":"male","age":"45-54","spend":137,"leads":0,"cpa":null},{"gender":"male","age":"55-64","spend":48,"leads":0,"cpa":null},{"gender":"male","age":"65+","spend":7,"leads":0,"cpa":null},{"gender":"unknown","age":"18-24","spend":1,"leads":0,"cpa":null},{"gender":"unknown","age":"25-34","spend":1,"leads":0,"cpa":null},{"gender":"unknown","age":"35-44","spend":11,"leads":0,"cpa":null},{"gender":"unknown","age":"45-54","spend":4,"leads":0,"cpa":null},{"gender":"unknown","age":"55-64","spend":0,"leads":0,"cpa":null}],"audience_types":[{"type":"開發新客","spend":4394,"leads":7,"cpa":628,"cpm":1154}],"ads":[{"name":"廣川_省時無痛減肥_單圖_品牌痛點型_260402","spend":2696,"leads":5,"cpa":539,"ctr":1.11,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.2,"theme":"痛點型"},{"name":"廣川_變美不用跑台北_單圖_品牌痛點型_260109","spend":1472,"leads":2,"cpa":736,"ctr":2.38,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.12,"theme":"痛點型"},{"name":"廣川_鄧醫師_鄧醫師泡芙人_影片_知識型_260410","spend":61,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":7.64,"v3s":8,"v25":3,"v50":2,"v75":2,"v100":1,"completion":12.5,"freq":1.0,"theme":"知識型"},{"name":"廣川_診間開箱影片_影片_品牌通用型_260417","spend":53,"leads":0,"cpa":null,"ctr":2.78,"cpv3s":5.29,"v3s":10,"v25":3,"v50":2,"v75":0,"v100":0,"completion":0.0,"freq":1.08,"theme":"品牌通用型"},{"name":"廣川_名單_精品自信體態_單圖_品牌通用型_260508","spend":52,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.01,"theme":"品牌通用型"},{"name":"廣川_鄧醫師_鄧醫師減重案例_影片_知識型_260410","spend":45,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":6.44,"v3s":7,"v25":3,"v50":0,"v75":0,"v100":0,"completion":0.0,"freq":1.0,"theme":"案例型"},{"name":"廣川_產後重塑自信線條_單圖_品牌痛點型_260402","spend":15,"leads":0,"cpa":null,"ctr":0.0,"cpv3s":null,"v3s":0,"v25":0,"v50":0,"v75":0,"v100":0,"completion":null,"freq":1.04,"theme":"痛點型"}],"themes":[{"theme":"品牌通用型","spend":105,"leads":0,"cpa":null,"ctr":0.99},{"theme":"案例型","spend":45,"leads":0,"cpa":null,"ctr":0.0},{"theme":"痛點型","spend":4184,"leads":7,"cpa":598,"ctr":1.49},{"theme":"知識型","spend":61,"leads":0,"cpa":null,"ctr":0.0}]}}},"funnel_compare":null,"pixel_health":{"spend":7107,"clicks":133,"web_leads":0,"meta_leads":7,"status":"🔴 0 轉換","click_to_lead_rate":0.0}}},"overview_cards":[{"id":"hk","name":"🇭🇰 香港 (Cofit)","target":8000,"is_partner":false,"spend":44432,"leads":4,"cpa":11108,"ctr":2.09,"cpm":656,"pixel_status":"🟡 偏低"},{"id":"taipei","name":"🏥 台北初日","target":5000,"is_partner":false,"spend":45978,"leads":0,"cpa":null,"ctr":0.93,"cpm":376,"pixel_status":"🔴 0 轉換"},{"id":"kaohsiung","name":"🏥 高雄初日","target":5000,"is_partner":false,"spend":53396,"leads":6,"cpa":8899,"ctr":0.64,"cpm":389,"pixel_status":"🟢 正常"},{"id":"hsinchu","name":"🏥 新竹初日","target":5000,"is_partner":false,"spend":23582,"leads":0,"cpa":null,"ctr":0.76,"cpm":351,"pixel_status":"🔴 0 轉換"},{"id":"beauty","name":"🏥 佳醫美人 (台北仁愛)","target":5000,"is_partner":true,"spend":6021,"leads":2,"cpa":3010,"ctr":1.13,"cpm":657,"pixel_status":"🔴 0 轉換"},{"id":"broadriver","name":"🏥 廣川","target":5000,"is_partner":true,"spend":7107,"leads":7,"cpa":1015,"ctr":1.2,"cpm":639,"pixel_status":"🔴 0 轉換"}],"group_compare":{"init":{"name":"初日體系","spend":167388,"leads":10,"cpa":16739,"imp":394633,"clicks":3941},"partner":{"name":"合作院所","spend":13128,"leads":9,"cpa":1459,"imp":20285,"clicks":237}}};
+const TWD_USD = DATA.meta.usd_to_twd;
+let CURRENCY = 'TWD';
+
+// Currency conversion
+function conv(twd) {
+  if (twd == null) return null;
+  return CURRENCY === 'TWD' ? Math.round(twd) : Math.round(twd / TWD_USD * 100) / 100;
+}
+function fmtMoney(twd) {
+  if (twd == null) return '—';
+  const v = conv(twd);
+  return CURRENCY === 'TWD' ? Math.round(v).toLocaleString('en-US') : '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmt(n) { return n == null ? '—' : Number(n).toLocaleString('en-US'); }
+function currLabel() { return CURRENCY; }
+function targetFor(cid) { return cid === 'hk' ? DATA.meta.target_hk : DATA.meta.target_default; }
+function cpaColor(c, target) {
+  if (c == null) return '#9ca3af';
+  if (c <= DATA.meta.target_best) return '#10b981';
+  if (c <= target) return '#84cc16';
+  if (c <= target * 1.4) return '#f59e0b';
+  return '#ef4444';
+}
+
+// Build clinic tabs
+const TABS = [
+  { id:'overview', label:'📊 整合總覽' },
+  { id:'hk', label:'🇭🇰 香港' },
+  { id:'taipei', label:'🏥 台北' },
+  { id:'kaohsiung', label:'🏥 高雄' },
+  { id:'hsinchu', label:'🏥 新竹' },
+  { id:'beauty', label:'🏥 佳醫美人' },
+  { id:'broadriver', label:'🏥 廣川' },
+];
+const tabsEl = document.getElementById('clinicTabs');
+TABS.forEach(t => {
+  const card = DATA.overview_cards.find(c => c.id === t.id);
+  let badge = '';
+  if (card) {
+    const cpa = card.cpa;
+    const target = t.id === 'hk' ? DATA.meta.target_hk : DATA.meta.target_default;
+    let cls = 'badge', txt = '';
+    if (cpa == null) { cls += ' bad'; txt = '0 lead'; }
+    else if (cpa <= DATA.meta.target_best) { cls += ' good'; txt = '🟢'; }
+    else if (cpa <= target) { cls += ' good'; txt = '✓'; }
+    else if (cpa <= target * 1.4) { cls += ' warn'; txt = '⚠'; }
+    else { cls += ' bad'; txt = '×'; }
+    badge = `<span class="${cls}">${txt}</span>`;
+  }
+  tabsEl.innerHTML += `<div class="clinic-tab${t.id==='overview'?' active':''}" data-clinic="${t.id}">${t.label}${badge}</div>`;
+});
+document.getElementById('period').textContent = DATA.meta.period;
+
+// ===== Render OVERVIEW =====
+const rendered = { overview: false };
+
+function renderOverview() {
+  const c = document.getElementById('view-overview');
+  c.innerHTML = `
+    <h2>院所現況卡片</h2>
+    <div class="overview-grid" id="ov-grid"></div>
+
+    <h2>院所對比表</h2>
+    <div class="section-card">
+      <div style="overflow-x:auto"><table class="compare-table" id="ov-compare"></table></div>
+    </div>
+
+    <h2>🆕 漏斗策略 vs 不指定醫師（直接投放）對比</h2>
+    <div class="section-card" id="ov-funnel"></div>
+
+    <h2>初日體系 vs 合作院所</h2>
+    <div class="section-card" id="ov-groups"></div>
+
+    <h2>🚦 Pixel 健康總覽（跨院所追蹤狀態）</h2>
+    <div class="section-card" id="ov-pixel"></div>
+  `;
+
+  // Cards
+  const grid = document.getElementById('ov-grid');
+  DATA.overview_cards.forEach(card => {
+    const target = card.id === 'hk' ? DATA.meta.target_hk : DATA.meta.target_default;
+    let status, statusCls;
+    if (card.cpa == null) { status = '🔴 0 名單'; statusCls = 'status-bad'; }
+    else if (card.cpa <= DATA.meta.target_best) { status = '🟢 卓越'; statusCls = 'status-good'; }
+    else if (card.cpa <= target) { status = '🟢 達標'; statusCls = 'status-good'; }
+    else if (card.cpa <= target * 1.4) { status = '🟡 微超'; statusCls = 'status-warn'; }
+    else { status = '🔴 嚴重超標'; statusCls = 'status-bad'; }
+
+    const div = document.createElement('div');
+    div.className = 'clinic-card';
+    div.dataset.go = card.id;
+    div.innerHTML = `
+      <div class="clinic-card-head">
+        <div>
+          <div class="clinic-card-name">${card.name} ${card.is_partner?'<span class="partner-badge">合作</span>':''}</div>
+          <div class="clinic-card-sub">目標 CPA ≤ ${fmt(conv(target))} ${currLabel()} · Pixel: ${card.pixel_status}</div>
+        </div>
+        <span class="clinic-card-status ${statusCls}">${status}</span>
+      </div>
+      <div class="clinic-card-kpis">
+        <div class="mini-kpi"><div class="mini-kpi-label">花費</div><div class="mini-kpi-value">${fmtMoney(card.spend)}</div></div>
+        <div class="mini-kpi"><div class="mini-kpi-label">名單</div><div class="mini-kpi-value">${card.leads}</div></div>
+        <div class="mini-kpi"><div class="mini-kpi-label">CPA</div><div class="mini-kpi-value" style="color:${cpaColor(card.cpa,target)}">${fmtMoney(card.cpa)}</div></div>
+      </div>
+      <div class="clinic-card-sub" style="margin-top:6px;">CTR ${card.ctr}% · CPM ${fmtMoney(card.cpm)} ${currLabel()}</div>
+    `;
+    div.addEventListener('click', () => switchClinic(card.id));
+    grid.appendChild(div);
+  });
+
+  // Compare table
+  const ct = document.getElementById('ov-compare');
+  let h = `<thead><tr><th>院所</th><th>類型</th><th>目標CPA</th><th>花費</th><th>名單</th><th>CPA</th><th>CTR</th><th>Pixel</th></tr></thead><tbody>`;
+  DATA.overview_cards.forEach(c => {
+    const target = c.id === 'hk' ? DATA.meta.target_hk : DATA.meta.target_default;
+    h += `<tr>
+      <td><b>${c.name}</b></td>
+      <td>${c.is_partner?'合作':'初日'}</td>
+      <td>${fmt(conv(target))}</td>
+      <td>${fmtMoney(c.spend)}</td>
+      <td>${c.leads}</td>
+      <td style="color:${cpaColor(c.cpa,target)};font-weight:600">${fmtMoney(c.cpa)}</td>
+      <td>${c.ctr}%</td>
+      <td>${c.pixel_status}</td>
+    </tr>`;
+  });
+  h += '</tbody>';
+  ct.innerHTML = h;
+
+  // Funnel compare
+  const fc = document.getElementById('ov-funnel');
+  let fh = '';
+  ['taipei','kaohsiung'].forEach(cid => {
+    const fcd = DATA.clinics[cid].funnel_compare;
+    if (!fcd) return;
+    const ft = fcd.funnel_total, ns = fcd.non_specified;
+    const fcpa = ft ? ft.cpa : null, ncpa = ns ? ns.cpa : null;
+    const winner = (fcpa && ncpa && fcpa < ncpa) ? 'funnel' : (fcpa && ncpa) ? 'direct' : null;
+    fh += `<h3>${DATA.clinics[cid].info.name}</h3>
+      <div class="funnel-compare">
+        <div class="funnel-side funnel">
+          <h3 style="margin-top:0">📐 漏斗策略（上+中+下層）</h3>
+          ${fcd.top?`<div class="funnel-stage"><span class="funnel-stage-name">上層</span> · 花費 ${fmtMoney(fcd.top.spend)} · CPM ${fmtMoney(fcd.top.cpm)} · 3秒影片 ${fmt(fcd.top.v3s)} · CPV3s ${fmtMoney(fcd.top.cpv3s)}</div>`:''}
+          ${fcd.mid?`<div class="funnel-stage"><span class="funnel-stage-name">中層</span> · 花費 ${fmtMoney(fcd.mid.spend)} · CPM ${fmtMoney(fcd.mid.cpm)} · 完播率 ${fcd.mid.completion_rate||'—'}%</div>`:''}
+          ${fcd.btm?`<div class="funnel-stage"><span class="funnel-stage-name">下層</span> · 花費 ${fmtMoney(fcd.btm.spend)} · CPC ${fmtMoney(fcd.btm.spend/Math.max(1,fcd.btm.clicks))} · 名單 ${fcd.btm.leads}</div>`:''}
+          <div class="funnel-result ${winner==='funnel'?'winner':winner==='direct'?'loser':''}">
+            <div class="${winner==='funnel'?'winner-label':winner==='direct'?'loser-label':''}">
+              ${winner==='funnel'?'🏆 漏斗策略勝':winner==='direct'?'⚠️ 漏斗策略輸':'⏳ 樣本不足'}
+            </div>
+            漏斗整體 CPA：<b>${ft?fmtMoney(ft.cpa):'N/A'}</b> ${currLabel()}（${ft?ft.leads:0} 名單 / ${ft?fmtMoney(ft.spend):0} ${currLabel()}）
+          </div>
+        </div>
+        <div class="funnel-side direct">
+          <h3 style="margin-top:0">🎯 不指定醫師（直接投放）</h3>
+          <div class="funnel-stage"><span class="funnel-stage-name">花費</span> · <span class="funnel-stage-val">${ns?fmtMoney(ns.spend):'N/A'}</span></div>
+          <div class="funnel-stage"><span class="funnel-stage-name">曝光</span> · <span class="funnel-stage-val">${ns?fmt(ns.imp):'N/A'}</span></div>
+          <div class="funnel-stage"><span class="funnel-stage-name">連結點擊</span> · <span class="funnel-stage-val">${ns?fmt(ns.clicks):'N/A'}</span></div>
+          <div class="funnel-stage"><span class="funnel-stage-name">CTR</span> · <span class="funnel-stage-val">${ns&&ns.ctr?ns.ctr+'%':'N/A'}</span></div>
+          <div class="funnel-result ${winner==='direct'?'winner':winner==='funnel'?'loser':''}">
+            <div class="${winner==='direct'?'winner-label':winner==='funnel'?'loser-label':''}">
+              ${winner==='direct'?'🏆 不指定勝':winner==='funnel'?'⚠️ 不指定輸':'⏳ 樣本不足'}
+            </div>
+            不指定 CPA：<b>${ns?fmtMoney(ns.cpa):'N/A'}</b> ${currLabel()}（${ns?ns.leads:0} 名單 / ${ns?fmtMoney(ns.spend):0} ${currLabel()}）
+          </div>
+        </div>
+      </div>`;
+  });
+  fc.innerHTML = fh || '<div class="no-data">目前無漏斗策略資料</div>';
+
+  // Groups
+  const og = document.getElementById('ov-groups');
+  const init = DATA.group_compare.init, ptn = DATA.group_compare.partner;
+  og.innerHTML = `
+    <table class="compare-table">
+      <thead><tr><th>群組</th><th>院所數</th><th>花費</th><th>名單</th><th>整體 CPA</th><th>曝光</th><th>點擊</th></tr></thead>
+      <tbody>
+        <tr><td><b>初日體系</b></td><td>4 (HK + 台北 + 高雄 + 新竹)</td><td>${fmtMoney(init.spend)}</td><td>${init.leads}</td><td style="color:${cpaColor(init.cpa,5000)};font-weight:600">${fmtMoney(init.cpa)}</td><td>${fmt(init.imp)}</td><td>${fmt(init.clicks)}</td></tr>
+        <tr><td><b>合作院所</b></td><td>2 (佳醫美人 + 廣川)</td><td>${fmtMoney(ptn.spend)}</td><td>${ptn.leads}</td><td style="color:${cpaColor(ptn.cpa,5000)};font-weight:600">${fmtMoney(ptn.cpa)}</td><td>${fmt(ptn.imp)}</td><td>${fmt(ptn.clicks)}</td></tr>
+      </tbody>
+    </table>
+  `;
+
+  // Pixel
+  const pxEl = document.getElementById('ov-pixel');
+  let pxh = '<table class="compare-table"><thead><tr><th>院所</th><th>狀態</th><th>花費</th><th>連結點擊</th><th>網站名單</th><th>Meta名單</th><th>點擊→名單率</th></tr></thead><tbody>';
+  Object.entries(DATA.clinics).forEach(([cid, c]) => {
+    const ph = c.pixel_health;
+    pxh += `<tr><td><b>${c.info.name}</b></td><td>${ph.status}</td><td>${fmtMoney(ph.spend)}</td><td>${fmt(ph.clicks)}</td><td>${ph.web_leads}</td><td>${ph.meta_leads}</td><td>${ph.click_to_lead_rate}%</td></tr>`;
+  });
+  pxh += '</tbody></table><div class="sub" style="margin-top:8px;">⚠️ Pixel 狀態為「0 轉換」的院所請優先檢查 events.cofit.me 落地頁 Pixel 觸發</div>';
+  pxEl.innerHTML = pxh;
+}
+
+// Generic render section
+function renderSection(containerId, sectionData, target, info) {
+  const c = document.getElementById(containerId);
+  if (!sectionData) {
+    c.innerHTML = '<div class="no-data">此活動無資料</div>';
+    return;
+  }
+  const m = sectionData.kpi;
+  const cpaCls = m.cpa==null ? 'kpi-bad' : m.cpa<=DATA.meta.target_best ? 'kpi-good' : m.cpa<=target ? 'kpi-good' : 'kpi-bad';
+
+  c.innerHTML = `
+    <h2>🎯 KPI 體檢</h2>
+    <div class="kpi-row" id="${containerId}-kpis"></div>
+
+    <h2>👥 受眾分析</h2>
+    <div class="section-card">
+      <h3>性別 × 年齡 熱力圖</h3>
+      <div class="sub">顏色越深 = CPA 越貴；灰色 = 0 名單</div>
+      <div class="demo-grid" id="${containerId}-demo"></div>
+      <h3 style="margin-top:14px;">開發新客 / 再行銷 / 類似受眾 對比</h3>
+      <div id="${containerId}-audtype"></div>
+    </div>
+
+    <div class="section-card">
+      <h3>🚦 廣告組合（受眾）紅黃綠燈</h3>
+      <div class="legend">
+        <span class="legend-pill">🟢 加碼 (CPA ≤ 目標 60%)</span>
+        <span class="legend-pill">🟡 維持</span>
+        <span class="legend-pill">🟠 縮減</span>
+        <span class="legend-pill">🔴 立即關閉</span>
+        <span class="legend-pill">⚪ 觀察期</span>
+      </div>
+      <div id="${containerId}-adsets"></div>
+    </div>
+
+    <h2>🎨 素材分析</h2>
+    <div class="section-card">
+      <h3>主題分類表現</h3>
+      <div id="${containerId}-themes"></div>
+      <h3 style="margin-top:14px;">每支廣告完整表現（含影片完播漏斗）</h3>
+      <div id="${containerId}-ads"></div>
+    </div>
+
+    <div class="section-card" id="${containerId}-videowrap" style="display:none;">
+      <h3>📺 Top 6 影片素材完播漏斗</h3>
+      <div class="sub">3 秒觀看 → 25% → 50% → 75% → 100%，每階段流失越多代表素材後段越弱</div>
+      <div class="chart-wrap"><canvas id="${containerId}-videofunnel"></canvas></div>
+    </div>
+  `;
+
+  // KPI
+  const kp = document.getElementById(containerId+'-kpis');
+  function card(label, value, sub, cls) {
+    return `<div class="kpi-card"><div class="kpi-label">${label}</div><div class="kpi-value ${cls||''}">${value}</div><div class="kpi-sub">${sub||''}</div></div>`;
+  }
+  kp.innerHTML = [
+    card('花費', fmtMoney(m.spend)+' '+currLabel(), `${fmt(m.imp)} 曝光`),
+    card('名單', m.leads, `CTR ${m.ctr||'—'}%`),
+    card('CPA', fmtMoney(m.cpa)+' '+currLabel(), `目標 ${fmt(conv(target))}`, cpaCls),
+    card('CPM', fmtMoney(m.cpm)+' '+currLabel(), 'Meta 平均約 250 TWD'),
+    card('3秒影片', fmt(m.v3s), `CPV3s ${fmtMoney(m.cpv3s)} ${currLabel()}`),
+    card('完播率', (m.completion_rate||'—')+'%', `100%: ${fmt(m.v100)}`),
+  ].join('');
+
+  // Demo heatmap
+  const ages = ['18-24','25-34','35-44','45-54','55-64','65+','Unknown'];
+  const genders = ['female','male','unknown'];
+  const dm = {}; sectionData.demo.forEach(d => dm[d.gender+'|'+d.age] = d);
+  let dh = '<div class="demo-cell demo-header">性別 \\ 年齡</div>';
+  ages.forEach(a => dh += `<div class="demo-cell demo-header">${a}</div>`);
+  genders.forEach(g => {
+    dh += `<div class="demo-cell demo-header">${g}</div>`;
+    ages.forEach(a => {
+      const d = dm[g+'|'+a];
+      if (!d || d.spend < 50) { dh += '<div class="demo-cell" style="color:#d1d5db">—</div>'; return; }
+      if (d.leads===0) {
+        dh += `<div class="demo-cell" style="background:#f3f4f6;color:#6b7280">花費 ${fmtMoney(d.spend)}<br>0 名單</div>`;
+      } else {
+        const col = cpaColor(d.cpa, target);
+        dh += `<div class="demo-cell demo-value" style="background:${col}"><b>${fmtMoney(d.cpa)}</b><br>${d.leads} 名單</div>`;
+      }
+    });
+  });
+  document.getElementById(containerId+'-demo').innerHTML = dh;
+
+  // Audience types
+  const at = sectionData.audience_types;
+  let ath = '<table class="compare-table"><thead><tr><th>類型</th><th>花費</th><th>名單</th><th>CPA</th><th>CPM</th></tr></thead><tbody>';
+  at.forEach(a => {
+    ath += `<tr><td><b>${a.type}</b></td><td>${fmtMoney(a.spend)}</td><td>${a.leads}</td><td style="color:${cpaColor(a.cpa,target)};font-weight:600">${fmtMoney(a.cpa)}</td><td>${fmtMoney(a.cpm)}</td></tr>`;
+  });
+  ath += '</tbody></table>';
+  document.getElementById(containerId+'-audtype').innerHTML = ath;
+
+  // Adsets
+  const adsetData = sectionData.adsets.map(a => [a.status, a.name, a.aud_type, fmtMoney(a.spend), a.leads, a.cpa==null?'—':fmtMoney(a.cpa), a.ctr+'%']);
+  new gridjs.Grid({
+    columns: [{name:'建議'}, {name:'廣告組合', width:'auto'}, {name:'類型'},
+      {name:'花費'},  {name:'名單'},
+      {name:'CPA', formatter:(c)=>gridjs.html(`<span style="color:${c==='—'?'#9ca3af':parseInt(String(c).replace(/[,$]/g,''))<=target?'#10b981':'#ef4444'};font-weight:600">${c}</span>`)},
+      {name:'CTR'}],
+    data: adsetData, sort:true, pagination:{limit:10}, style:{table:{'font-size':'12px'}}
+  }).render(document.getElementById(containerId+'-adsets'));
+
+  // Themes
+  const th = sectionData.themes.sort((a,b) => (a.cpa||999999)-(b.cpa||999999));
+  let thh = '<table class="compare-table"><thead><tr><th>主題</th><th>花費</th><th>名單</th><th>CPA</th><th>CTR</th></tr></thead><tbody>';
+  th.forEach(t => {
+    thh += `<tr><td><b>${t.theme}</b></td><td>${fmtMoney(t.spend)}</td><td>${t.leads}</td><td style="color:${cpaColor(t.cpa,target)};font-weight:600">${fmtMoney(t.cpa)}</td><td>${t.ctr}%</td></tr>`;
+  });
+  thh += '</tbody></table>';
+  document.getElementById(containerId+'-themes').innerHTML = thh;
+
+  // Ads
+  const adsData = sectionData.ads.slice(0, 30).map(a => [
+    a.theme, a.name, fmtMoney(a.spend), a.leads, a.cpa==null?'—':fmtMoney(a.cpa),
+    a.ctr+'%', fmt(a.v3s), fmt(a.v100), a.completion==null?'—':a.completion+'%', a.freq||'—'
+  ]);
+  new gridjs.Grid({
+    columns: ['主題','廣告名稱','花費','名單','CPA','CTR','3s影片','100%完播','完播率','頻率'],
+    data: adsData, sort:true, pagination:{limit:10}, style:{table:{'font-size':'11px'}}
+  }).render(document.getElementById(containerId+'-ads'));
+
+  // Video funnel for top 6 ads with video data
+  const videoAds = sectionData.ads.filter(a => a.v3s >= 100).sort((a,b)=>b.spend-a.spend).slice(0, 6);
+  if (videoAds.length > 0) {
+    document.getElementById(containerId+'-videowrap').style.display = '';
+    const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
+    new Chart(document.getElementById(containerId+'-videofunnel'), {
+      type: 'line',
+      data: {
+        labels: ['3秒','25%','50%','75%','100%'],
+        datasets: videoAds.map((a, i) => ({
+          label: a.name.length>30?a.name.slice(0,28)+'…':a.name,
+          data: [100, a.v25/a.v3s*100, a.v50/a.v3s*100, a.v75/a.v3s*100, a.v100/a.v3s*100].map(v => Math.round(v*10)/10),
+          borderColor: colors[i], backgroundColor: colors[i]+'22',
+          tension: 0.2, pointRadius: 3,
+        }))
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: {boxWidth:10, font:{size:10}} },
+                   tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y}%` } } },
+        scales: { y: { title: {display:true, text:'觀看比例 (%)'}, beginAtZero: true, max: 100 } }
+      }
+    });
+  }
+}
+
+// Render clinic view
+function renderClinic(cid) {
+  const c = DATA.clinics[cid];
+  if (!c) return;
+  const container = document.getElementById('view-'+cid);
+  const target = c.info.target;
+  const subKeys = Object.keys(c.subcamps);
+
+  // Build header + sub tabs + sub sections
+  let html = `
+    <h2>${c.info.name}</h2>
+    <div class="sub">目標 CPA ≤ ${fmt(conv(target))} ${currLabel()} · 落地頁：<code>${c.info.landing}</code> · Pixel：${c.pixel_health.status}</div>
+  `;
+
+  // Pixel alert if bad
+  if (c.pixel_health.status.includes('🔴')) {
+    html += `<div class="alert-note">🚨 此院所 Pixel 偵測異常：花費 ${fmtMoney(c.pixel_health.spend)} ${currLabel()}、點擊 ${fmt(c.pixel_health.clicks)} 次，但網站名單僅 ${c.pixel_health.web_leads} 筆。請優先檢查 <code>${c.info.landing}</code> 的 Pixel 觸發。</div>`;
+  }
+
+  // Funnel compare widget (only for taipei/kaohsiung)
+  if (c.funnel_compare) {
+    const fcd = c.funnel_compare;
+    const ft = fcd.funnel_total, ns = fcd.non_specified;
+    const fcpa = ft ? ft.cpa : null, ncpa = ns ? ns.cpa : null;
+    const winner = (fcpa && ncpa && fcpa < ncpa) ? 'funnel' : (fcpa && ncpa) ? 'direct' : null;
+    html += `<h2>🆕 漏斗策略效益評估</h2>
+      <div class="section-card">
+        <div class="funnel-compare">
+          <div class="funnel-side funnel">
+            <h3 style="margin-top:0">📐 漏斗策略</h3>
+            ${fcd.top?`<div class="funnel-stage"><b>上層</b> · 花費 ${fmtMoney(fcd.top.spend)} · CPM ${fmtMoney(fcd.top.cpm)} · 3秒影片 ${fmt(fcd.top.v3s)} · CPV3s ${fmtMoney(fcd.top.cpv3s)}</div>`:''}
+            ${fcd.mid?`<div class="funnel-stage"><b>中層</b> · 花費 ${fmtMoney(fcd.mid.spend)} · CPM ${fmtMoney(fcd.mid.cpm)} · 完播率 ${fcd.mid.completion_rate||'—'}%</div>`:''}
+            ${fcd.btm?`<div class="funnel-stage"><b>下層</b> · 花費 ${fmtMoney(fcd.btm.spend)} · 點擊 ${fmt(fcd.btm.clicks)} · 名單 ${fcd.btm.leads}</div>`:''}
+            <div class="funnel-result ${winner==='funnel'?'winner':winner==='direct'?'loser':''}">
+              <div class="${winner==='funnel'?'winner-label':winner==='direct'?'loser-label':''}">
+                ${winner==='funnel'?'🏆 漏斗策略勝出':winner==='direct'?'⚠️ 漏斗策略未達標':'⏳ 樣本不足'}
+              </div>
+              漏斗整體 CPA：<b>${ft?fmtMoney(ft.cpa):'N/A'}</b> ${currLabel()}
+            </div>
+          </div>
+          <div class="funnel-side direct">
+            <h3 style="margin-top:0">🎯 不指定醫師</h3>
+            <div class="funnel-stage"><b>花費</b> · ${ns?fmtMoney(ns.spend):'N/A'}</div>
+            <div class="funnel-stage"><b>曝光</b> · ${ns?fmt(ns.imp):'N/A'}</div>
+            <div class="funnel-stage"><b>點擊</b> · ${ns?fmt(ns.clicks):'N/A'}</div>
+            <div class="funnel-stage"><b>CTR</b> · ${ns&&ns.ctr?ns.ctr+'%':'N/A'}</div>
+            <div class="funnel-result ${winner==='direct'?'winner':winner==='funnel'?'loser':''}">
+              <div class="${winner==='direct'?'winner-label':winner==='funnel'?'loser-label':''}">
+                ${winner==='direct'?'🏆 不指定勝出':winner==='funnel'?'⚠️ 不指定未達標':'⏳ 樣本不足'}
+              </div>
+              不指定 CPA：<b>${ns?fmtMoney(ns.cpa):'N/A'}</b> ${currLabel()}
+            </div>
+          </div>
+        </div>
+        <div class="sub" style="margin-top:8px;">目標：漏斗整體 CPA 至少 ≤ 不指定 CPA（您原訂期望）</div>
+      </div>`;
+  }
+
+  // Sub tabs
+  if (subKeys.length > 1) {
+    html += `<div class="sub-tabs" id="${cid}-subtabs">
+      <div class="sub-tab active" data-sub="_all">全活動合計</div>
+      ${subKeys.map(k => `<div class="sub-tab" data-sub="${k}">${c.subcamps[k].name}</div>`).join('')}
+    </div>`;
+  }
+
+  // Sub views
+  html += `<div class="subview active" id="${cid}-sub-_all"></div>`;
+  subKeys.forEach(k => {
+    html += `<div class="subview" id="${cid}-sub-${k}"></div>`;
+  });
+
+  container.innerHTML = html;
+
+  // Render sub sections
+  renderSection(`${cid}-sub-_all`, c.all, target, c.info);
+  subKeys.forEach(k => {
+    renderSection(`${cid}-sub-${k}`, c.subcamps[k].section, target, c.info);
+  });
+
+  // Sub tab handler
+  container.querySelectorAll('.sub-tab[data-sub]').forEach(t => {
+    t.addEventListener('click', e => {
+      container.querySelectorAll('.sub-tab[data-sub]').forEach(x => x.classList.remove('active'));
+      e.target.classList.add('active');
+      container.querySelectorAll('.subview').forEach(v => v.classList.remove('active'));
+      document.getElementById(`${cid}-sub-${e.target.dataset.sub}`).classList.add('active');
+    });
+  });
+}
+
+// Switch clinic
+function switchClinic(cid) {
+  document.querySelectorAll('.clinic-tab').forEach(t => t.classList.toggle('active', t.dataset.clinic === cid));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-'+cid));
+  if (!rendered[cid]) {
+    if (cid === 'overview') renderOverview();
+    else renderClinic(cid);
+    rendered[cid] = true;
+  }
+}
+
+document.querySelectorAll('.clinic-tab').forEach(t => t.addEventListener('click', () => switchClinic(t.dataset.clinic)));
+
+// Currency toggle
+document.querySelectorAll('.curr-btn').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.curr-btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  CURRENCY = b.dataset.curr;
+  // Re-render all already-rendered views
+  Object.keys(rendered).forEach(k => { rendered[k] = false; });
+  switchClinic(document.querySelector('.clinic-tab.active').dataset.clinic);
+}));
+
+// Global alert
+const initLeads = DATA.overview_cards.reduce((s,c) => s + c.leads, 0);
+const initSpend = DATA.overview_cards.reduce((s,c) => s + c.spend, 0);
+if (initLeads <= 25 && initSpend > 100000) {
+  const ga = document.getElementById('globalAlert');
+  ga.style.display = '';
+  ga.innerHTML = `📊 學習期樣本說明：目前資料 ${DATA.meta.period} 共 2 天，6 院所總花費 ${fmtMoney(initSpend)} TWD、累積 ${initLeads} 筆名單。<b>因 5/11 全面換新帳戶處於 Meta 學習期，現階段 CPA 升高、轉換不穩定都是正常現象</b>，預計 5/25 後才能進入穩定評估期。`;
+}
+
+// Initial
+renderOverview();
+rendered.overview = true;
+</script>
+</div></body>
+</html>
